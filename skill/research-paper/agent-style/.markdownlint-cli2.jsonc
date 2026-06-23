@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: MIT
+// Markdown lint config for The Elements of Agent Style.
+// Rules disabled because this project legitimately produces the flagged shape:
+//   MD013 line-length     — many tables exceed 80 chars (adapter matrix, enforcement map)
+//   MD033 no-inline-html  — SPDX-License-Identifier comments at the top of every file
+//   MD041 first-line-h1   — SPDX comment comes before the H1 on purpose
+//   MD024 duplicate-headings — subheading reuse is fine in structured rule docs
+//   MD034 no-bare-urls    — tolerable in source citations and link lists
+//   MD026 no-trailing-punctuation — frontmatter `description:` fields legitimately end with a period
+//   MD029 ol-prefix       — SOURCES.md numbers 5-6 continue semantically from 1-4 across buckets
+{
+  "config": {
+    "MD013": false,
+    "MD033": false,
+    "MD041": false,
+    "MD024": false,
+    "MD034": false,
+    "MD026": false,
+    "MD029": false
+  },
+  "ignores": [
+    "LICENSES/**",
+    "node_modules/**",
+    "skills/**",
+    "packages/pypi/agent_style/data/skills/**",
+    "packages/npm/data/skills/**",
+    "docs/bench-*-drafts/**"
+  ]
+}
+// The `docs/bench-*-drafts/**` entry covers every release's preserved
+// raw model outputs from `scripts/bench/run.sh --keep-scratch`. These
+// drafts are committed evidence of what the scored runners emitted, not
+// normative prose. Quirks like Copilot's double-blank-line endings,
+// Claude's unfenced code-style commit messages, and Gemini's bare
+// headings legitimately reflect real CLI output and should not be edited
+// for lint compliance.

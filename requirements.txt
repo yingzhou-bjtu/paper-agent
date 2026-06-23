@@ -1,0 +1,29 @@
+# paper-agent  Python >=3.10
+#
+# 核心工具（bin/、scripts/）仅使用标准库：
+#   check-cursor-setup, configure-overleaf-cookie, open-overleaf-project,
+#   setup-overleaf-project, test-method-a 等
+# 不安装下列包也可正常运行上述功能。
+#
+# 安装：pip install -r requirements.txt
+
+# --- CCF / 科研 skill 脚本 ---
+PyYAML>=6.0.1
+pymupdf>=1.24.0
+
+# --- academic-research-skills 脚本 ---
+ruamel.yaml>=0.17.0
+jsonschema[format]>=4.17.0
+pypdf>=4.0.0
+defusedxml>=0.7.1
+
+# --- 画图 skill（tikz-diagrams 等）---
+Pillow>=10.0.0
+
+# --- agent-style ---
+markdown-it-py>=3.0.0
+
+# --- 实验代码常用（参考文献管理、绘图、数据分析）---
+numpy>=1.26.0
+matplotlib>=3.8.0
+pandas>=2.1.0

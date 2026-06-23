@@ -1,0 +1,359 @@
+# SPDX-License-Identifier: MIT
+
+name: Real-Agent Smoke
+
+# Exercises Claude Code and Codex non-interactively against the real
+# Anthropic and OpenAI APIs to verify that `agent-style enable <tool>`
+# actually installs the adapter and that each agent reads it and returns
+# the expected self-verification probe. GitHub Actions runners do not
+# ship the agents; this workflow installs them, uses API-key secrets,
+# and spends roughly $0.04 per run (three short API calls).
+#
+# Triggers are intentionally narrow to keep API cost low. This is a
+# behavior-verification run, not a per-push check; mechanical drift is
+# caught by validate.yml on every push.
+#
+#   - release.published  validates each release after it is tagged
+#   - workflow_dispatch  manual run against any branch from the Actions UI
+#
+# Required repository secrets:
+#   ANTHROPIC_API_KEY  https://console.anthropic.com/settings/keys
+#   OPENAI_API_KEY     https://platform.openai.com/api-keys
+#
+# The expected agent-style version comes from `agent-style --version`
+# of the installed package (not from the repo checkout), so the probe
+# assertion always matches the version actually shipped.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  claude-pip:
+    name: Claude Code sees adapter (installed via pip)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Install agent-style via pip
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install agent-style
+
+      - name: Enable Claude Code adapter
+        run: |
+          set -euo pipefail
+          agent-style enable claude-code
+          echo "--- CLAUDE.md ---"
+          cat CLAUDE.md
+          echo "--- .agent-style/ ---"
+          ls -la .agent-style/
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Probe Claude for the self-verification handshake
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          EXPECTED_VERSION=$(agent-style --version | awk '{print $2}')
+          echo "expected version: $EXPECTED_VERSION"
+          PROMPT='Is agent-style active? Reply on one line using the exact literal sentence from your adapter.'
+          # --model sonnet: handshake probes only verify adapter loading +
+          # instruction following, not prose quality; Sonnet is ~5x cheaper
+          # than Opus for equivalent signal on a 1-call probe.
+          RESP=$(claude -p --model sonnet "$PROMPT")
+          echo "::group::claude response"
+          echo "$RESP"
+          echo "::endgroup::"
+          MISSING=()
+          for token in "agent-style" "$EXPECTED_VERSION" "21 rules" "RULE-01" "RULE-A"; do
+            if ! grep -q -- "$token" <<<"$RESP"; then
+              MISSING+=("$token")
+            fi
+          done
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "::error::Claude response missing expected tokens: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "PASS: Claude sees agent-style $EXPECTED_VERSION adapter (installed via pip) with both rule groups"
+
+  claude-npm:
+    name: Claude Code sees adapter (installed via npm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Install agent-style via npm
+        run: npm install -g agent-style
+
+      - name: Enable Claude Code adapter
+        run: |
+          set -euo pipefail
+          agent-style enable claude-code
+          echo "--- CLAUDE.md ---"
+          cat CLAUDE.md
+          echo "--- .agent-style/ ---"
+          ls -la .agent-style/
+
+      - name: Check `agent-style rules` does not truncate on pipe (regression from v0.1.0)
+        run: |
+          set -euo pipefail
+          RULES_BYTES=$(agent-style rules | wc -c)
+          echo "rules output bytes: $RULES_BYTES"
+          if [ "$RULES_BYTES" -lt 80000 ]; then
+            echo "::error::regression: agent-style rules piped output truncated at $RULES_BYTES bytes"
+            exit 1
+          fi
+          # Sanity check: head -3 exits cleanly (EPIPE handling)
+          agent-style rules | head -3
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Probe Claude for the self-verification handshake
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          EXPECTED_VERSION=$(agent-style --version | awk '{print $2}')
+          echo "expected version: $EXPECTED_VERSION"
+          PROMPT='Is agent-style active? Reply on one line using the exact literal sentence from your adapter.'
+          # --model sonnet: handshake probes only verify adapter loading +
+          # instruction following, not prose quality; Sonnet is ~5x cheaper
+          # than Opus for equivalent signal on a 1-call probe.
+          RESP=$(claude -p --model sonnet "$PROMPT")
+          echo "::group::claude response"
+          echo "$RESP"
+          echo "::endgroup::"
+          MISSING=()
+          for token in "agent-style" "$EXPECTED_VERSION" "21 rules" "RULE-01" "RULE-A"; do
+            if ! grep -q -- "$token" <<<"$RESP"; then
+              MISSING+=("$token")
+            fi
+          done
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "::error::Claude response missing expected tokens: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "PASS: Claude sees agent-style $EXPECTED_VERSION adapter (installed via npm) with both rule groups"
+
+  style-review-skill:
+    name: Claude Code sees style-review skill
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Install agent-style from branch source
+        # Install from branch rather than PyPI so manual workflow_dispatch runs
+        # validate the repo's current state (skills post-v0.2.0 may not yet be
+        # in the published package). On release.published, the checkout is the
+        # tag, so the branch install matches the release contents.
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip build
+          python -m build packages/pypi --outdir packages/pypi/dist
+          python -m pip install packages/pypi/dist/agent_style-*.whl
+          agent-style --version
+
+      - name: Enable claude-code first (so style-review sees an active surface)
+        run: |
+          set -euo pipefail
+          agent-style enable claude-code
+          agent-style enable style-review
+          echo "--- installed skill files ---"
+          ls -la .claude/skills/style-review/
+          ls -la .agent-style/skills/style-review/references/
+          echo "--- manifest ---"
+          cat .agent-style/skills/style-review/manifest.json | head -20
+
+      - name: Static check — skill body contains the handshake sentence
+        run: |
+          set -euo pipefail
+          SKILL=.claude/skills/style-review/SKILL.md
+          [ -f "$SKILL" ] || { echo "::error::$SKILL missing"; exit 1; }
+          MISSING=()
+          for token in "style-review active" "21 rules" "deterministic" "semantic via host" "workflow at skills/style-review"; do
+            if ! grep -q -- "$token" "$SKILL"; then
+              MISSING+=("$token")
+            fi
+          done
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "::error::skill body missing tokens: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "PASS: skill body carries the full handshake"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Probe Claude — skill body is well-formed to an LLM reader
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          # `claude -p` runs one-shot without skill auto-discovery: the skill's
+          # SKILL.md sits on disk but is not pulled into session context unless
+          # the user explicitly triggers it (via `/style-review` in interactive
+          # mode). To test the skill body end-to-end without depending on
+          # skill-trigger semantics or tool-use permissions, inline the skill
+          # contents into the prompt and ask Claude to extract the handshake.
+          # This proves (a) the installer wrote the file, (b) the file carries
+          # the handshake, (c) an LLM can parse the skill body structure.
+          SKILL_BODY=$(cat .claude/skills/style-review/SKILL.md)
+          PROMPT=$(printf '%s\n\n%s\n\n%s' \
+            'Here is the full contents of .claude/skills/style-review/SKILL.md:' \
+            "$SKILL_BODY" \
+            'Reply on one line with the exact literal self-verification sentence from the skill (starts with "style-review active"). Output only that sentence, nothing else.')
+          # --model sonnet: handshake probes only verify adapter loading +
+          # instruction following, not prose quality; Sonnet is ~5x cheaper
+          # than Opus for equivalent signal on a 1-call probe.
+          RESP=$(claude -p --model sonnet "$PROMPT")
+          echo "::group::claude response"
+          echo "$RESP"
+          echo "::endgroup::"
+          MISSING=()
+          for token in "style-review active" "21 rules" "deterministic" "semantic via host"; do
+            if ! grep -q -- "$token" <<<"$RESP"; then
+              MISSING+=("$token")
+            fi
+          done
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "::error::Claude response missing style-review tokens: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "PASS: Claude extracted the full style-review handshake from the skill body"
+
+  kiro-adapter-body:
+    name: Kiro adapter body is well-formed (static)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install agent-style from branch source
+        # Install from branch rather than PyPI: Kiro was added post-v0.2.0 via
+        # PR #2 and is not yet in the published package.
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip build
+          python -m build packages/pypi --outdir packages/pypi/dist
+          python -m pip install packages/pypi/dist/agent_style-*.whl
+          agent-style --version
+
+      - name: Enable kiro adapter
+        run: |
+          set -euo pipefail
+          agent-style enable kiro
+          echo "--- .kiro/steering/agent-style.md ---"
+          cat .kiro/steering/agent-style.md
+
+      - name: Static check — adapter body carries the handshake + YAML frontmatter
+        run: |
+          set -euo pipefail
+          FILE=.kiro/steering/agent-style.md
+          EXPECTED_VERSION=$(agent-style --version | awk '{print $2}')
+          [ -f "$FILE" ] || { echo "::error::$FILE missing"; exit 1; }
+          MISSING=()
+          for token in "agent-style v$EXPECTED_VERSION" "21 rules" "RULE-01" "RULE-A" "inclusion: auto"; do
+            if ! grep -q -- "$token" "$FILE"; then
+              MISSING+=("$token")
+            fi
+          done
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "::error::kiro adapter body missing tokens: ${MISSING[*]}"
+            exit 1
+          fi
+          # Frontmatter shape: line 1 = opening `---`, line 3 = `inclusion: auto`,
+          # line 4 = closing `---`. Exact-line checks so the closing delimiter
+          # cannot be satisfied by the opener alone.
+          sed -n '1p' "$FILE" | grep -qx -- '---'            || { echo "::error::kiro adapter: line 1 is not '---'"; exit 1; }
+          sed -n '3p' "$FILE" | grep -qx -- 'inclusion: auto' || { echo "::error::kiro adapter: line 3 is not 'inclusion: auto'"; exit 1; }
+          sed -n '4p' "$FILE" | grep -qx -- '---'            || { echo "::error::kiro adapter: line 4 is not '---' (frontmatter unclosed)"; exit 1; }
+          echo "PASS: kiro adapter body $EXPECTED_VERSION carries the full handshake + frontmatter"
+
+  codex:
+    name: Codex sees adapter via AGENTS.md
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install agent-style via pip
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install agent-style
+
+      - name: Enable the AGENTS.md adapter (safe-append)
+        run: |
+          set -euo pipefail
+          # The repo ships agents/AGENTS.md (the adapter SOURCE), not a
+          # project-root AGENTS.md that Codex would actually read. The
+          # enable subcommand creates / safe-appends to root AGENTS.md.
+          agent-style enable agents-md
+          echo "--- AGENTS.md ---"
+          cat AGENTS.md
+
+      # Use OpenAI's official action rather than `npm install -g @openai/codex`
+      # + direct `codex exec`, because the action starts the Responses API
+      # proxy that API-key auth requires.
+      - name: Run Codex via official action
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt: "Is agent-style active? Reply on one line using the exact literal sentence from AGENTS.md."
+          output-file: codex-response.txt
+          safety-strategy: drop-sudo
+          sandbox: read-only
+
+      - name: Verify Codex response matches the self-verification handshake
+        run: |
+          set -euo pipefail
+          EXPECTED_VERSION=$(agent-style --version | awk '{print $2}')
+          echo "expected version: $EXPECTED_VERSION"
+          RESP=$(cat codex-response.txt)
+          echo "::group::codex response"
+          echo "$RESP"
+          echo "::endgroup::"
+          MISSING=()
+          for token in "agent-style" "$EXPECTED_VERSION" "21 rules" "RULE-01" "RULE-A"; do
+            if ! grep -q -- "$token" <<<"$RESP"; then
+              MISSING+=("$token")
+            fi
+          done
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "::error::Codex response missing expected tokens: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "PASS: Codex sees agent-style $EXPECTED_VERSION adapter with both rule groups"

@@ -1,0 +1,17 @@
+.env
+*.pyc
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+smoke-test-report.json
+build/
+dist/
+.cursor/
+paper-agent-guide.exe
+*.spec.bak
+
+# vendored skill 仓库内的 git 元数据不纳入版本控制
+skill/**/.git/
+
+papers/

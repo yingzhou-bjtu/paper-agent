@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=../scripts/lib/load-env.sh
+source "$ROOT/scripts/lib/load-env.sh"
+exec python3 "$ROOT/scripts/run_checks.py" "$@"

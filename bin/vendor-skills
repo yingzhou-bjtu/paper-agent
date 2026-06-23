@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# 将 manifest 中的开源 Skill 下载到 skill/（发布打包用）
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec python3 "$ROOT/scripts/vendor_skills.py" "$@"

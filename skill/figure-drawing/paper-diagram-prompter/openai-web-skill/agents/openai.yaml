@@ -1,0 +1,11 @@
+interface:
+  display_name: Paper Skill LaTeX
+  short_description: LaTeX paper writing and figure prompts
+  icon: "\U0001F4C4"
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

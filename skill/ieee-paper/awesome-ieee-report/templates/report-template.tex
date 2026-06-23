@@ -1,0 +1,159 @@
+\documentclass[conference]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% Set babel language to match report language (e.g. english, turkish, german)
+\usepackage[english]{babel}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{float}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue
+}
+
+\begin{document}
+
+\title{[PROJECT TITLE]: [Short Description]}
+
+\author{
+\IEEEauthorblockN{[Author Name]}
+\IEEEauthorblockA{
+[Department] \\
+[University / Organization] \\
+[City, Country] \\
+[Email or ID]}
+}
+
+\maketitle
+
+\begin{abstract}
+[Summary of the project's goal, approach, methods used, and key results.
+Must be written in purely academic language with no code references.]
+\end{abstract}
+
+\begin{IEEEkeywords}
+[keyword 1], [keyword 2], [keyword 3], ...
+\end{IEEEkeywords}
+
+% ================================================================
+\section{Introduction}
+% ================================================================
+
+[Project motivation, goal, and scope.
+Introduction to the relevant domain and the project's position within it.
+Core technologies and approaches used (in academic language).
+Overview of the rest of the report.]
+
+% ================================================================
+\section{Related Work}
+% ================================================================
+
+[Prior work, relevant literature, and how this project relates to or differs from existing approaches.
+Use \cite{} for all references.]
+
+% ================================================================
+\section{System Architecture and Methodology}
+% ================================================================
+
+\subsection{Overall Architecture}
+
+[Layered architecture description.
+Separation of responsibilities between layers.
+Reference to architecture diagram.]
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.9\linewidth}{
+    \centering
+    \textbf{[PLACEHOLDER --- ARCHITECTURE DIAGRAM]}\\[0.5em]
+    \small [Description of what should be shown]
+  }}
+  \caption{[Figure caption]}
+  \label{fig:architecture}
+\end{figure}
+
+\subsection{Technology Stack}
+
+[Technologies used and rationale for each choice.
+Use \cite{} for each technology reference.]
+
+\subsection{Data Management Strategy}
+
+[Persistent storage approach.
+Database schema and table structures (conceptual level).
+Data access layer architecture.]
+
+% ================================================================
+% [PROJECT-SPECIFIC SECTIONS]
+% Sections below are derived from the project requirement document
+% or the major functional areas of the system.
+% ================================================================
+
+\section{[Project-Specific Section 1]}
+
+[Description of the relevant mechanism or module.
+Use IEEE algorithm environment for pseudocode if applicable.
+Present parameters and thresholds in a table.]
+
+\begin{algorithm}[H]
+\caption{[Algorithm Name]}
+\begin{algorithmic}[1]
+\STATE [Step 1]
+\STATE [Step 2]
+\IF{[condition]}
+  \STATE [action]
+\ENDIF
+\RETURN [result]
+\end{algorithmic}
+\end{algorithm}
+
+\section{[Project-Specific Section 2]}
+[...]
+
+% ================================================================
+\section{Evaluation}
+% ================================================================
+
+[Test approach and coverage areas.
+Unit, component, and integration test results.
+Performance metrics and analysis.
+Summary of tested behaviors — not test file names or commands.]
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.9\linewidth}{
+    \centering
+    \textbf{[PLACEHOLDER --- RESULT / SCREENSHOT]}\\[0.5em]
+    \small Source: [where this will be captured from]\\
+    [Description of expected content]
+  }}
+  \caption{[Figure caption]}
+  \label{fig:result_1}
+\end{figure}
+
+% ================================================================
+\section{Conclusion and Future Work}
+% ================================================================
+
+[Current completion status of the project.
+Requirement coverage summary (table optional).
+Future development steps.]
+
+% ================================================================
+\section*{Acknowledgment}
+[Course, institution, or funding acknowledgment if applicable.]
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

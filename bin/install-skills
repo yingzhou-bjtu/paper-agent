@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# 从 skill/manifest.json 克隆上游开源 Skill，软链到 .cursor/skills/
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec python3 "$ROOT/scripts/skill_installer.py" "$@"

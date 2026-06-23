@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# 兼容旧入口：转到命令行引导
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec "$ROOT/bin/paper-agent-guide" "$@"

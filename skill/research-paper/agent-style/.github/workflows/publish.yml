@@ -1,0 +1,72 @@
+name: Publish
+
+# Fires on the human gate (clicking "Publish release" in the UI or running
+# `gh release create v<X.Y.Z>`). Validation is a prerequisite, not enforced
+# here: the operator must confirm the validate workflow is green for the
+# release commit before creating the release. PyPI and npm are immutable once
+# published. publish.yml builds and uploads the release artifacts.
+#
+# PyPI: uses Trusted Publishing (OIDC) - no secret in the repo. A pending
+# publisher must be configured at https://pypi.org/manage/account/publishing/
+# before the first release fires the workflow.
+#
+# npm: uses Trusted Publishing (OIDC) - no secret in the repo. A Trusted
+# Publisher (owner/repo/workflow) must be configured at
+# https://www.npmjs.com/package/agent-style/access before the first release
+# fires. OIDC publishes are exempt from the package's 2FA-on-publish policy
+# that blocks plain automation tokens (E403). npm >= 11.5.1 and Node >= 22.14
+# are required for OIDC, so the job runs on Node 24 and upgrades npm.
+# --provenance attaches a signed build-provenance statement.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      npm_only:
+        description: "Skip PyPI; publish npm only (use when PyPI is already at this version)"
+        type: boolean
+        default: false
+
+jobs:
+  pypi:
+    if: github.event_name == 'release' || inputs.npm_only != true
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build
+          python -m build packages/pypi --outdir dist
+      - name: Publish to PyPI (Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          skip-existing: true
+
+  npm:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      # npm Trusted Publishing (OIDC) needs npm >= 11.5.1 and Node >= 22.14.
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@latest
+      # No NODE_AUTH_TOKEN: with a configured Trusted Publisher on npm and
+      # id-token: write, npm authenticates via OIDC. --provenance is implied by
+      # trusted publishing but kept explicit for clarity.
+      - name: Publish to npm via OIDC trusted publishing
+        working-directory: packages/npm
+        run: npm publish --provenance --access public

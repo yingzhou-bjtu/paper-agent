@@ -1,0 +1,5 @@
+ID,Phase,Title,Description,Target_Citations,Visualization,Acceptance,Status,Verified_Citations,Notes
+R1,Research,<task>,<short description>,0,N/A,<acceptance>,TODO,0,Duplicate/split/insert rows as needed; add new IDs when scope grows; re-validate
+W1,Writing,<section title>,<write this section per approved outline>,<n>,<viz>,<acceptance>,TODO,0,Duplicate/split/insert per section; add new IDs when scope grows; re-validate
+RF1,Refinement,Rhythm refinement,Apply latex-rhythm-refiner skill section-by-section after all W issues DONE,0,N/A,All sections refined; citations preserved; fillers removed,TODO,0,Run only after all writing issues are DONE
+Q1,QA,<check>,<what to verify>,0,N/A,<acceptance>,TODO,0,Duplicate/split/insert per QA item; add new IDs when scope grows; re-validate

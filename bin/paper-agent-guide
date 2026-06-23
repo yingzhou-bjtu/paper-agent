@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# paper-agent 命令行引导（无需 Qt）
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=../scripts/lib/load-env.sh
+source "$ROOT/scripts/lib/load-env.sh"
+exec python3 "$ROOT/scripts/guide_cli.py" "$@"

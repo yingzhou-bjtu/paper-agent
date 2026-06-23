@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: MIT -->
+<!--
+  agent-style bench scorecard panel (2-model).
+
+  Renders the cross-model headline numbers from docs/bench-0.3.0.md in the
+  editorial style of hero.html and sources.html: cream paper, double-rule
+  frame, Georgia + Segoe UI + mono typography, green accent for the
+  improvement arc. Three stacked per-model panels (Claude Opus, OpenAI
+  GPT-5.4 via Codex CLI, Gemini 3 Flash) keep the story legible without
+  a dense grouped-bar chart. Copilot is measured in the bench but
+  excluded from this figure because CLI -p programmatic mode does not
+  load instruction files (see CHANGELOG).
+
+  Render at 3x DPI (window taller than 2-panel v0.2.0 figure to fit
+  three panels without clipping):
+    "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+      --headless --disable-gpu --hide-scrollbars \
+      --force-device-scale-factor=3 --window-size=1280,1400 \
+      --screenshot="C:/Users/yuezh/PycharmProjects/agent-style/docs/bench.png" \
+      "file:///C:/Users/yuezh/PycharmProjects/agent-style/docs/hero-source/bench.html"
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>agent-style — bench scorecard</title>
+<style>
+  :root {
+    --paper: #f7f3ea;
+    --paper-deep: #ebe5d4;
+    --ink: #1a1815;
+    --ink-mid: #4a463e;
+    --rule: #8a8370;
+    --tile-bg: #fffdf7;
+    --baseline-bg: #e6dfc8;       /* muted sandstone for baseline bars */
+    --baseline-border: #a89c72;
+    --treatment-bg: #cbdcb7;       /* soft green for treatment bars */
+    --treatment-border: #7fa268;
+    --accent: #3d5e2a;             /* deep green for delta numbers */
+    --caveat: #8a2d2d;             /* dusty red accent for caveat chip */
+    --claude-accent: #3d5a7a;      /* steel blue for Claude panel tab */
+    --openai-accent: #2d5f3f;      /* forest green for OpenAI panel tab */
+    --gemini-accent: #55336a;      /* deep plum for Gemini panel tab */
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    font-family: Georgia, "Times New Roman", serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .bench {
+    width: 1200px;
+    padding: 26px 34px 24px 34px;
+    box-sizing: border-box;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    box-shadow: inset 0 0 0 4px var(--paper), inset 0 0 0 5px var(--ink-mid);
+  }
+  .top-label {
+    font-family: "Segoe UI", "SF Pro Text", system-ui, sans-serif;
+    letter-spacing: 0.22em;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--ink-mid);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .question {
+    text-align: center;
+    font-family: Georgia, serif;
+    font-size: 17px;
+    color: var(--ink);
+    margin-bottom: 18px;
+    line-height: 1.45;
+  }
+  .question .q {
+    font-weight: 600;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    letter-spacing: 0.01em;
+  }
+  .question code {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 14px;
+    background: white;
+    border: 1px solid var(--rule);
+    padding: 0 5px;
+    border-radius: 2px;
+  }
+
+  /* Per-model panel */
+  .panel {
+    background: var(--tile-bg);
+    border: 1px solid var(--rule);
+    border-top-width: 6px;
+    border-radius: 2px;
+    padding: 18px 20px 16px 20px;
+    margin-bottom: 14px;
+  }
+  .panel.claude { border-top-color: var(--claude-accent); }
+  .panel.openai { border-top-color: var(--openai-accent); }
+  .panel.gemini { border-top-color: var(--gemini-accent); }
+
+  .panel-head {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .panel-title {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+  }
+  .panel-title .pod {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 10.5px;
+    color: var(--ink-mid);
+    display: block;
+    margin-top: 2px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+  }
+  .panel-nums {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: "Playfair Display", Georgia, serif;
+    white-space: nowrap;
+    justify-content: flex-end;
+  }
+  .panel-nums .baseline-val {
+    font-size: 38px;
+    font-weight: 700;
+    color: var(--ink-mid);
+  }
+  .panel-nums .arrow {
+    font-size: 28px;
+    color: var(--rule);
+  }
+  .panel-nums .treatment-val {
+    font-size: 46px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .panel-nums .delta {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 14px;
+    color: var(--accent);
+    padding: 3px 8px;
+    background: white;
+    border: 1px solid var(--treatment-border);
+    border-radius: 3px;
+    margin-left: 4px;
+    font-weight: 600;
+  }
+
+  /* Rule rows inside a panel */
+  .rules {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 22px;
+    margin-bottom: 10px;
+  }
+  .rule-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 48px;
+    gap: 8px;
+    align-items: center;
+  }
+  .rule-id-col {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    color: var(--ink);
+  }
+  .rule-id-col .id {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .rule-id-col .label {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 9.5px;
+    color: var(--ink-mid);
+    display: block;
+    margin-top: 1px;
+    line-height: 1.25;
+  }
+  .bar-cluster {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 10.5px;
+  }
+  .bar-fill {
+    height: 8px;
+    border-radius: 2px;
+    border: 1px solid var(--baseline-border);
+    background: var(--baseline-bg);
+    flex: 0 0 auto;
+  }
+  .bar.treatment .bar-fill {
+    background: var(--treatment-bg);
+    border-color: var(--treatment-border);
+  }
+  .bar .count {
+    font-size: 11px;
+    color: var(--ink);
+    font-weight: 600;
+    min-width: 18px;
+  }
+  .delta-col {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 700;
+    text-align: right;
+  }
+  .delta-col.positive { color: var(--caveat); }
+  .delta-col.zero { color: var(--ink-mid); font-weight: 400; }
+
+  .highlight-line {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--ink-mid);
+    border-top: 1px solid var(--rule);
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+  .highlight-line .name {
+    font-family: "SF Mono", Consolas, monospace;
+    color: var(--ink);
+  }
+  .highlight-line .nums {
+    font-family: "Playfair Display", Georgia, serif;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .legend {
+    display: flex;
+    gap: 22px;
+    justify-content: center;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--ink-mid);
+    margin: 0 0 14px 0;
+  }
+  .legend .swatch {
+    display: inline-block;
+    width: 16px;
+    height: 9px;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-right: 6px;
+    border: 1px solid var(--baseline-border);
+    background: var(--baseline-bg);
+  }
+  .legend .swatch.treatment {
+    background: var(--treatment-bg);
+    border-color: var(--treatment-border);
+  }
+
+  .footer {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--ink-mid);
+    text-align: center;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .footer .sep { color: var(--rule); margin: 0 9px; }
+  .footer code {
+    font-family: "SF Mono", Consolas, monospace;
+    text-transform: none;
+    letter-spacing: 0;
+    background: white;
+    padding: 1px 5px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    font-size: 10px;
+    color: var(--ink-mid);
+  }
+  .footer .caveat {
+    color: var(--caveat);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+  }
+</style>
+</head>
+<body>
+<div class="bench">
+
+  <div class="top-label">sanity benchmark · agent-style v0.3.0 · 10 fixed prose tasks · 3 models</div>
+
+  <div class="question">
+    <span class="q">Does <code>agent-style</code> actually reduce AI-tell density?</span><br>
+    On 10 fixed prose tasks (2 PR descriptions, 1 design-doc section, 1 commit message,
+    4 paper sections, 1 product description, 1 NSF specific aim), two generations each,
+    flagship models drafted with <em>agent-style</em> loaded at generation time logged
+    fewer mechanical rule violations across every family we tested.
+  </div>
+
+  <!-- ============= Claude Opus 4.7 panel ============= -->
+  <div class="panel claude">
+    <div class="panel-head">
+      <div class="panel-title">
+        Claude Opus 4.7
+        <span class="pod">via Claude Code CLI · <code style="font-family:'SF Mono',Consolas,monospace;font-size:10px;background:#fff;border:1px solid var(--rule);padding:0 3px;border-radius:2px">claude -p</code></span>
+      </div>
+      <div class="panel-nums">
+        <span class="baseline-val">105</span>
+        <span class="arrow">&rarr;</span>
+        <span class="treatment-val">58</span>
+        <span class="delta">&minus;47 (&minus;45%)</span>
+      </div>
+    </div>
+    <div class="rules">
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-12</span>
+          <span class="label">sentences &gt; 30 words</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 100%;"></span><span class="count">62</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 72.6%;"></span><span class="count">45</span></div>
+        </div>
+        <div class="delta-col">&minus;17</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-B</span>
+          <span class="label">em / en-dash casual use</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 43.5%;"></span><span class="count">27</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 0%;"></span><span class="count">0</span></div>
+        </div>
+        <div class="delta-col">&minus;27</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-I</span>
+          <span class="label">contractions, formal prose</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 22.6%;"></span><span class="count">14</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 16.1%;"></span><span class="count">10</span></div>
+        </div>
+        <div class="delta-col">&minus;4</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-G</span>
+          <span class="label">heading title case</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 3.2%;"></span><span class="count">2</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 4.8%;"></span><span class="count">3</span></div>
+        </div>
+        <div class="delta-col">+1</div>
+      </div>
+    </div>
+    <div class="highlight-line">
+      <span class="name">paper-04-related-work</span>
+      <span class="nums">20&rarr;8</span>
+      &nbsp;&middot;&nbsp;
+      <span class="name">grant-01-nsf-aim</span>
+      <span class="nums">18&rarr;8</span>
+      &nbsp;&middot;&nbsp;
+      <span class="name">design-02-rate-limiter</span>
+      <span class="nums">14&rarr;7</span>
+    </div>
+  </div>
+
+  <!-- ============= OpenAI GPT-5.4 via Codex CLI panel ============= -->
+  <div class="panel openai">
+    <div class="panel-head">
+      <div class="panel-title">
+        OpenAI GPT-5.4
+        <span class="pod">via Codex CLI · <code style="font-family:'SF Mono',Consolas,monospace;font-size:10px;background:#fff;border:1px solid var(--rule);padding:0 3px;border-radius:2px">codex exec</code></span>
+      </div>
+      <div class="panel-nums">
+        <span class="baseline-val">51</span>
+        <span class="arrow">&rarr;</span>
+        <span class="treatment-val">28</span>
+        <span class="delta">&minus;23 (&minus;45%)</span>
+      </div>
+    </div>
+    <div class="rules">
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-12</span>
+          <span class="label">sentences &gt; 30 words</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 100%;"></span><span class="count">47</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 51.1%;"></span><span class="count">24</span></div>
+        </div>
+        <div class="delta-col">&minus;23</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-G</span>
+          <span class="label">heading title case</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 4.3%;"></span><span class="count">2</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 4.3%;"></span><span class="count">2</span></div>
+        </div>
+        <div class="delta-col zero">0</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-I</span>
+          <span class="label">contractions, formal prose</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 4.3%;"></span><span class="count">2</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 4.3%;"></span><span class="count">2</span></div>
+        </div>
+        <div class="delta-col zero">0</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-B</span>
+          <span class="label">em / en-dash casual use</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 0%;"></span><span class="count">0</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 0%;"></span><span class="count">0</span></div>
+        </div>
+        <div class="delta-col zero">0</div>
+      </div>
+    </div>
+    <div class="highlight-line">
+      <span class="name">paper-03-experiments</span>
+      <span class="nums">7&rarr;2</span>
+      &nbsp;&middot;&nbsp;
+      <span class="name">paper-01-abstract</span>
+      <span class="nums">7&rarr;3</span>
+      &nbsp;&middot;&nbsp;
+      <span class="name">grant-01-nsf-aim</span>
+      <span class="nums">8&rarr;5</span>
+    </div>
+  </div>
+
+  <!-- ============= Gemini 3 Flash panel ============= -->
+  <div class="panel gemini">
+    <div class="panel-head">
+      <div class="panel-title">
+        Gemini 3 Flash
+        <span class="pod">via Gemini CLI · <code style="font-family:'SF Mono',Consolas,monospace;font-size:10px;background:#fff;border:1px solid var(--rule);padding:0 3px;border-radius:2px">gemini --model flash</code></span>
+      </div>
+      <div class="panel-nums">
+        <span class="baseline-val">79</span>
+        <span class="arrow">&rarr;</span>
+        <span class="treatment-val">14</span>
+        <span class="delta">&minus;65 (&minus;82%)</span>
+      </div>
+    </div>
+    <div class="rules">
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-12</span>
+          <span class="label">sentences &gt; 30 words</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 100%;"></span><span class="count">40</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 15.0%;"></span><span class="count">6</span></div>
+        </div>
+        <div class="delta-col">&minus;34</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-06</span>
+          <span class="label">plain English over jargon</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 37.5%;"></span><span class="count">15</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 5.0%;"></span><span class="count">2</span></div>
+        </div>
+        <div class="delta-col">&minus;13</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-B</span>
+          <span class="label">em / en-dash casual use</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 20.0%;"></span><span class="count">8</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 0%;"></span><span class="count">0</span></div>
+        </div>
+        <div class="delta-col">&minus;8</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-id-col">
+          <span class="id">RULE-I</span>
+          <span class="label">contractions, formal prose</span>
+        </div>
+        <div class="bar-cluster">
+          <div class="bar baseline"><span class="bar-fill" style="width: 17.5%;"></span><span class="count">7</span></div>
+          <div class="bar treatment"><span class="bar-fill" style="width: 2.5%;"></span><span class="count">1</span></div>
+        </div>
+        <div class="delta-col">&minus;6</div>
+      </div>
+    </div>
+    <div class="highlight-line">
+      <span class="name">paper-03-experiments</span>
+      <span class="nums">13&rarr;0</span>
+      &nbsp;&middot;&nbsp;
+      <span class="name">grant-01-nsf-aim</span>
+      <span class="nums">19&rarr;7</span>
+      &nbsp;&middot;&nbsp;
+      <span class="name">paper-02-methods</span>
+      <span class="nums">13&rarr;2</span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="swatch"></span>baseline&nbsp; (no <em>agent-style</em> loaded)</span>
+    <span><span class="swatch treatment"></span>treatment&nbsp; (agent-style at generation time)</span>
+  </div>
+
+  <div class="footer">
+    sanity benchmark
+    <span class="sep">&middot;</span>
+    10 tasks &middot; 2 generations each &middot; 4 runners tested; Copilot CLI excluded from figure (see CHANGELOG)
+    <span class="sep">&middot;</span>
+    <span class="caveat">directional, not statistically significant</span>
+    <span class="sep">&middot;</span>
+    reproduce: <code>bash scripts/bench/run.sh</code> locally
+  </div>
+
+</div>
+</body>
+</html>
