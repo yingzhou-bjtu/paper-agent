@@ -67,3 +67,4 @@ Overleaf + Cursor 环境检查、Cookie 登录配置，以及 **Method A** 本�
 
 - 私有 Overleaf 配置请仅写在本地 `.env`（已 gitignore）
 - `skill/manifest.json` 仅允许 `open_source: true` 的条目；非开源 Skill 禁止加入
+- 推送前运行 `./bin/audit-release`，扫描私人路径、邮箱与非开源 skill 配置

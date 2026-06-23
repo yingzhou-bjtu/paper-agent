@@ -12,59 +12,21 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-
-def _bold(text: str) -> str:
-    if sys.stdout.isatty():
-        return f"\033[1m{text}\033[0m"
-    return text
-
-
-def _green(text: str) -> str:
-    if sys.stdout.isatty():
-        return f"\033[32m{text}\033[0m"
-    return text
-
-
-def _yellow(text: str) -> str:
-    if sys.stdout.isatty():
-        return f"\033[33m{text}\033[0m"
-    return text
-
-
-def _red(text: str) -> str:
-    if sys.stdout.isatty():
-        return f"\033[31m{text}\033[0m"
-    return text
-
-
-def _yes_no(question: str, default: bool = True) -> bool:
-    suffix = "Y/n" if default else "y/N"
-    while True:
-        try:
-            answer = input(f"{question} [{suffix}]: ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            raise
-        if not answer:
-            return default
-        if answer in {"y", "yes", "是"}:
-            return True
-        if answer in {"n", "no", "否"}:
-            return False
-        print("请输入 y 或 n。")
+from scripts.lib.env_file import parse_env_file  # noqa: E402
+from scripts.lib.terminal import bold, green, red, yellow, yes_no  # noqa: E402
 
 
 def _run(cmd: list[str], *, allow_fail: bool = False) -> int:
-    print(_bold(f"\n$ {' '.join(cmd)}\n"))
+    print(bold(f"\n$ {' '.join(cmd)}\n"))
     proc = subprocess.run(cmd, cwd=ROOT)
     if proc.returncode != 0 and not allow_fail:
-        print(_red(f"\n命令失败 (退出码 {proc.returncode})"))
+        print(red(f"\n命令失败 (退出码 {proc.returncode})"))
     return proc.returncode
 
 
 def _banner() -> None:
     print()
-    print(_bold("paper-agent 命令行引导"))
+    print(bold("paper-agent 命令行引导"))
     print("按步骤完成：环境配置 → 检查 → 部署 Method A → Skills")
     print(f"项目目录: {ROOT}")
     print()
@@ -72,21 +34,30 @@ def _banner() -> None:
 
 def _step(title: str) -> None:
     print()
-    print(_bold(f"── {title} ──"))
+    print(bold(f"── {title} ──"))
+
+
+def _env_has_project_config(env_path: Path) -> bool:
+    values = parse_env_file(env_path)
+    return bool(values.get("OVERLEAF_PROJECT_NAME") and values.get("OVERLEAF_PROJECT_ID"))
 
 
 def run_guide(*, quick: bool = False, skip_skills: bool = False) -> int:
     _banner()
+    env_path = ROOT / ".env"
 
     # 1. .env
     _step("1/6 环境配置 (.env)")
-    if quick:
+    if quick and env_path.is_file() and _env_has_project_config(env_path):
+        print("保留现有 .env（已含项目名与 ID）。")
+        code = 0
+    elif quick:
         code = _run([sys.executable, str(ROOT / "scripts/setup_env.py"), "--defaults-only"])
     else:
-        if not (ROOT / ".env").is_file():
+        if not env_path.is_file():
             print("尚未找到 .env，将启动交互式配置。")
             code = _run([sys.executable, str(ROOT / "scripts/setup_env.py")])
-        elif _yes_no("重新运行 .env 配置向导？", default=False):
+        elif yes_no("重新运行 .env 配置向导？", default=False):
             code = _run([sys.executable, str(ROOT / "scripts/setup_env.py")])
         else:
             print("保留现有 .env。")
@@ -98,8 +69,8 @@ def run_guide(*, quick: bool = False, skip_skills: bool = False) -> int:
     _step("2/6 Cursor / Overleaf 检查")
     check_code = _run([str(ROOT / "bin/check-cursor-setup")])
     if check_code != 0:
-        print(_yellow("\n检查未通过。常见原因：未安装 Overleaf Workshop，或未配置 Cookie。"))
-        if _yes_no("现在配置 Overleaf Cookie？", default=True):
+        print(yellow("\n检查未通过。常见原因：未安装 Overleaf Workshop，或未配置 Cookie。"))
+        if yes_no("现在配置 Overleaf Cookie？", default=True):
             print(
                 "请从浏览器 www.overleaf.com → 开发者工具 → Cookies 复制 overleaf_session2。\n"
                 "运行: ./bin/configure-overleaf-cookie --cookie 'overleaf_session2=...'"
@@ -113,11 +84,11 @@ def run_guide(*, quick: bool = False, skip_skills: bool = False) -> int:
                 if c == 0:
                     check_code = _run([str(ROOT / "bin/check-cursor-setup")])
         if check_code != 0:
-            print(_yellow("可稍后手动运行 ./bin/check-cursor-setup"))
+            print(yellow("可稍后手动运行 ./bin/check-cursor-setup"))
 
     # 3. 部署 Method A
     _step("3/6 部署 Method A（本地副本）")
-    if quick or _yes_no("部署 / 刷新 Method A？", default=True):
+    if quick or yes_no("部署 / 刷新 Method A？", default=True):
         code = _run([str(ROOT / "bin/setup-overleaf-project")])
         if code != 0:
             return code
@@ -128,7 +99,7 @@ def run_guide(*, quick: bool = False, skip_skills: bool = False) -> int:
     _step("4/6 安装 Agent Skills")
     if skip_skills:
         print("已跳过（--skip-skills）。")
-    elif quick or _yes_no("安装推荐 Skills 到 .cursor/skills/？", default=True):
+    elif quick or yes_no("安装推荐 Skills 到 .cursor/skills/？", default=True):
         _run([str(ROOT / "bin/install-skills"), "minimal"], allow_fail=True)
     else:
         print("已跳过。")
@@ -139,17 +110,17 @@ def run_guide(*, quick: bool = False, skip_skills: bool = False) -> int:
 
     # 6. 完成
     _step("6/6 完成")
-    print(_green("引导流程已结束。"))
+    print(green("引导流程已结束。"))
     print()
     print("日常使用：")
-    print(f"  {_bold('./bin/open-overleaf-replica')}     # 在 Cursor 打开本地副本（推荐）")
-    print(f"  {_bold('./bin/open-overleaf-project')} '<你的项目名>'  # 打开远程项目")
-    print(f"  {_bold('./bin/test-method-a')}             # 再次验证同步")
+    print(f"  {bold('./bin/open-overleaf-replica')}     # 在 Cursor 打开本地副本（推荐）")
+    print(f"  {bold('./bin/open-overleaf-project')} '<你的项目名>'  # 打开远程项目")
+    print(f"  {bold('./bin/test-method-a')}             # 再次验证同步")
     print()
     if test_code == 0:
-        print(_green("Method A 验证通过，可以开始写作。"))
+        print(green("Method A 验证通过，可以开始写作。"))
     else:
-        print(_yellow("Method A 验证未完全通过，请根据上方输出排查。"))
+        print(yellow("Method A 验证未完全通过，请根据上方输出排查。"))
 
     return 0 if test_code == 0 else 1
 

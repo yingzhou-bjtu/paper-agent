@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 import subprocess
 import sys
@@ -12,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.skill_installer import MANIFEST, SKILL_ROOT, load_manifest, install_preset
+from scripts.skill_installer import SKILL_ROOT, install_preset, load_manifest
 
 
 def _clone(repo: str, target: Path) -> None:

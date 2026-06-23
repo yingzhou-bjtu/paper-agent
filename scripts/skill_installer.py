@@ -59,25 +59,37 @@ def install_preset(preset: str = "minimal") -> int:
         raise ValueError(f"未知 preset: {preset}（可选: {known}）")
 
     linked = 0
+    skipped = 0
     for name in names:
         entry = catalog.get(name)
         if not entry:
             print(f"跳过未知 skill: {name}", file=sys.stderr)
+            skipped += 1
             continue
         if not entry.get("open_source", True):
             print(f"跳过非开源 skill: {name}", file=sys.stderr)
+            skipped += 1
             continue
-        link_path = _ensure_material(entry)
+        try:
+            link_path = _ensure_material(entry)
+        except (subprocess.CalledProcessError, OSError, ValueError) as exc:
+            print(f"安装失败 ({name}): {exc}", file=sys.stderr)
+            skipped += 1
+            continue
         msg = _link(name, link_path)
-        if msg:
-            print(msg)
-            if msg.startswith("已链接"):
-                linked += 1
+        if not msg:
+            skipped += 1
+            continue
+        print(msg)
+        if msg.startswith("已链接"):
+            linked += 1
+        else:
+            skipped += 1
 
     print("")
     print(f"完成。已链接 {linked} 个 skill 到 {DEST}")
     print("请重启 Cursor 使 Agent 重新发现 skills。")
-    return 0 if linked > 0 else 1
+    return 0 if linked > 0 and skipped == 0 else (0 if linked > 0 else 1)
 
 
 def main(argv: list[str] | None = None) -> int:

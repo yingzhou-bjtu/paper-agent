@@ -3,5 +3,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=../scripts/lib/load-env.sh
 source "$ROOT/scripts/lib/load-env.sh"
-REPLICA_DIR="${OVERLEAF_METHOD_A_DIR:-$HOME/papers/论文ai协助测试/method-a}"
+if [[ -n "${OVERLEAF_METHOD_A_DIR:-}" ]]; then
+  REPLICA_DIR="$OVERLEAF_METHOD_A_DIR"
+elif [[ -n "${OVERLEAF_PROJECT_NAME:-}" ]]; then
+  REPLICA_DIR="$HOME/papers/$OVERLEAF_PROJECT_NAME/method-a"
+else
+  REPLICA_DIR="$HOME/papers/method-a"
+fi
 exec cursor -r "$REPLICA_DIR" "$@"
