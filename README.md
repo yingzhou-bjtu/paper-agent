@@ -52,6 +52,20 @@ Overleaf + Cursor 环境检查、Cookie 登录配置，以及 **Method A** 本�
 仅包含 **开源** Skill（见 [`skill/manifest.json`](skill/manifest.json)，`open_source: true`）。  
 发布版在 `skill/` 预置副本；`./bin/install-skills minimal` 软链到 `.cursor/skills/`。
 
+**许可证与再分发：** 各 skill 保持上游许可证，见 [COMPLIANCE.md](COMPLIANCE.md) 与 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。  
+其中 `academic-research-skills` 为 **CC-BY-NC-4.0（禁止商用）**；部分 figure skill 许可证需在发布前向上游核实。
+
+## 合规与安全
+
+| 文档 | 内容 |
+|------|------|
+| [COMPLIANCE.md](COMPLIANCE.md) | 第三方再分发、Overleaf/Cursor 免责声明、学术诚信 |
+| [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) | 各 skill 许可证一览 |
+| [SECURITY.md](SECURITY.md) | Cookie / `.env` 安全、漏洞报告 |
+| [LICENSE](LICENSE) | paper-agent 本体（MIT） |
+
+paper-agent **非** Overleaf 或 Cursor 官方产品。使用 Cookie 与自动化功能时，请遵守 Overleaf 服务条款及所在机构政策。
+
 ## 环境变量
 
 | 变量 | 说明 |
@@ -68,3 +82,5 @@ Overleaf + Cursor 环境检查、Cookie 登录配置，以及 **Method A** 本�
 - 私有 Overleaf 配置请仅写在本地 `.env`（已 gitignore）
 - `skill/manifest.json` 仅允许 `open_source: true` 的条目；非开源 Skill 禁止加入
 - 推送前运行 `./bin/audit-release`，扫描私人路径、邮箱与非开源 skill 配置
+- 可选：复制 `.audit-denylist.example` 为 `.audit-denylist` 并填入个人敏感词以加强扫描
+- 更新 `skill/` 后同步 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)

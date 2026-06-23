@@ -24,84 +24,138 @@
       "clone_dir": "research-paper/vibe-paper-writing",
       "link": "research-paper/vibe-paper-writing",
       "open_source": true,
-      "license": "MIT"
+      "spdx": "MIT",
+      "license": "MIT License",
+      "commercial_use": true,
+      "redistribute": "allowed",
+      "attribution": "required"
     },
     "research-paper-writing": {
       "repo": "https://github.com/Master-cai/Research-Paper-Writing-Skills.git",
       "clone_dir": "research-paper/research-paper-writing",
       "link": "research-paper/research-paper-writing/research-paper-writing",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "MIT",
+      "license": "MIT License",
+      "commercial_use": true,
+      "redistribute": "allowed",
+      "attribution": "required"
     },
     "academic-paper": {
       "repo": "https://github.com/Imbad0202/academic-research-skills.git",
       "clone_dir": "research-paper/academic-research-skills",
       "link": "research-paper/academic-research-skills/academic-paper",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "CC-BY-NC-4.0",
+      "license": "Creative Commons Attribution-NonCommercial 4.0",
+      "commercial_use": false,
+      "redistribute": "nc_only",
+      "attribution": "required",
+      "compliance_notes": "NonCommercial only. Do not publish copyrighted abstracts/user_notes from skill outputs without rights."
     },
     "research-writing": {
       "repo": "https://github.com/Norman-bury/research-writing-skill.git",
       "clone_dir": "research-paper/research-writing-skill",
       "link": "research-paper/research-writing-skill",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "MIT",
+      "license": "MIT License",
+      "commercial_use": true,
+      "redistribute": "allowed",
+      "attribution": "required"
     },
     "style-review": {
       "repo": "https://github.com/yzhao062/agent-style.git",
       "clone_dir": "research-paper/agent-style",
       "link": "research-paper/agent-style/skills/style-review",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "MIT AND CC-BY-4.0",
+      "license": "Dual: MIT (code) + CC-BY-4.0 (prose/skills)",
+      "commercial_use": true,
+      "redistribute": "allowed",
+      "attribution": "required",
+      "compliance_notes": "Retain upstream NOTICE.md and per-file SPDX headers."
     },
     "ccf-paper-writer": {
       "repo": "https://github.com/mikubaka88/CCFA-Skills.git",
       "clone_dir": "ccf-paper/CCFA-Skills",
       "link": "ccf-paper/CCFA-Skills/ccf-paper-writer",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "MIT",
+      "license": "MIT License",
+      "commercial_use": true,
+      "redistribute": "allowed",
+      "attribution": "required",
+      "compliance_notes": "Bundled conference templates (e.g. ECCV) may have separate terms; for author submission use."
     },
     "paper-write": {
       "repo": "https://github.com/charlotte-12s/paper-craft.git",
       "clone_dir": "ccf-paper/paper-craft",
       "link": "ccf-paper/paper-craft/skills/paper-write",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "BSD-3-Clause",
+      "license": "BSD 3-Clause License",
+      "commercial_use": true,
+      "redistribute": "allowed",
+      "attribution": "required"
     },
     "awesome-ieee-report": {
       "repo": "https://github.com/EnesDemir143/awesome-ieee-report.git",
       "clone_dir": "ieee-paper/awesome-ieee-report",
       "link": "ieee-paper/awesome-ieee-report",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "MIT",
+      "license": "MIT License",
+      "commercial_use": true,
+      "redistribute": "allowed",
+      "attribution": "required"
     },
     "design-to-ieee": {
       "repo": "https://github.com/dhruvp-dev/DesignToIEEE.git",
       "clone_dir": "ieee-paper/DesignToIEEE",
       "link": "ieee-paper/DesignToIEEE/skill",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "MIT",
+      "license": "MIT License",
+      "commercial_use": true,
+      "redistribute": "allowed",
+      "attribution": "required"
     },
     "tikz-diagrams": {
       "repo": "https://github.com/Patrick-Healy/tikz-diagrams-skill.git",
       "clone_dir": "figure-drawing/tikz-diagrams",
       "link": "figure-drawing/tikz-diagrams",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "UNKNOWN",
+      "license": "Unverified — no LICENSE in vendored snapshot",
+      "commercial_use": null,
+      "redistribute": "verify_upstream",
+      "attribution": "required",
+      "compliance_notes": "Confirm license on upstream GitHub before public redistribution."
     },
     "tikz-scientific-figures": {
       "repo": "https://github.com/PM-Shawn/tikz-scientific-figures.git",
       "clone_dir": "figure-drawing/tikz-scientific-figures",
       "link": "figure-drawing/tikz-scientific-figures",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "UNKNOWN",
+      "license": "Unverified — sub-asset method-draw has separate LICENSE",
+      "commercial_use": null,
+      "redistribute": "verify_upstream",
+      "attribution": "required",
+      "compliance_notes": "See assets/method-draw/LICENSE; confirm main skill license upstream."
     },
     "paper-diagram-prompter": {
       "repo": "https://github.com/Fanceir/paper-skill-latex.git",
       "clone_dir": "figure-drawing/paper-diagram-prompter",
       "link": "figure-drawing/paper-diagram-prompter",
       "open_source": true,
-      "license": "See upstream"
+      "spdx": "UNKNOWN",
+      "license": "Unverified — no LICENSE in vendored snapshot",
+      "commercial_use": null,
+      "redistribute": "verify_upstream",
+      "attribution": "required",
+      "compliance_notes": "Confirm license on upstream GitHub before public redistribution."
     }
   }
 }

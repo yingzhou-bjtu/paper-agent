@@ -1,0 +1,7 @@
+# 本地审计拒绝列表（每行一个敏感字面量，已 gitignore）
+# 复制为 .audit-denylist 后填写你自己的项目名、邮箱片段等
+# 示例（请替换为真实值后使用，勿提交 .audit-denylist）：
+# my-overleaf-project-name
+# abc123def456...
+# you@example.com
+# /home/youruser

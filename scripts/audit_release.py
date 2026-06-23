@@ -18,20 +18,37 @@ MANIFEST = ROOT / "skill" / "manifest.json"
 
 # Project-owned paths only; vendored skill/ trees are upstream OSS copies.
 SCAN_PREFIXES = ("bin/", "scripts/", "templates/", "skill/manifest.json", "skill/README.md")
-SCAN_ROOT_FILES = (".env.example", ".gitignore", "README.md", "requirements.txt", "paper-agent-guide")
+SCAN_ROOT_FILES = (
+    ".env.example",
+    ".gitignore",
+    "README.md",
+    "requirements.txt",
+    "paper-agent-guide",
+    "LICENSE",
+    "COMPLIANCE.md",
+    "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md",
+)
 
 PRIVATE_PATH_RE = re.compile(r"/home/[A-Za-z0-9._-]+")
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@(?:qq|163|126|gmail)\.com", re.IGNORECASE)
 OVERLEAF_ID_RE = re.compile(r"\b[0-9a-f]{24}\b")
 NON_OSS_MANIFEST_RE = re.compile(r'"open_source"\s*:\s*false', re.IGNORECASE)
 
-# Add project-specific tokens here after redacting from the tree.
-EXTRA_DENYLIST: tuple[str, ...] = (
-    "论文ai协助测试",
-    "6a3a4a64a383e1f42a71e7f8",
-    "352412923@qq.com",
-    "/home/ying",
-)
+# Optional local denylist (gitignored). One literal token per line; # comments allowed.
+_DENYLIST_PATH = ROOT / ".audit-denylist"
+
+def _load_denylist() -> tuple[str, ...]:
+    if not _DENYLIST_PATH.is_file():
+        return ()
+    tokens: list[str] = []
+    for raw_line in _DENYLIST_PATH.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        tokens.append(line)
+    return tuple(tokens)
+
 
 PRIVATE_SKILL_NAMES = frozenset(
     {
@@ -82,14 +99,15 @@ def _scan_text_file(path: Path, rel: str, report: AuditReport) -> None:
         report.findings.append(Finding(rel, 0, f"无法读取: {exc}"))
         return
 
+    denylist = _load_denylist()
     for line_no, line in enumerate(text.splitlines(), start=1):
-        for token in EXTRA_DENYLIST:
+        for token in denylist:
             if token in line:
                 report.findings.append(
                     Finding(rel, line_no, f"命中私有 denylist: {token!r}")
                 )
         if PRIVATE_PATH_RE.search(line):
-            report.findings.append(Finding(rel, line_no, "疑似本机绝对路径 (/home/...)"))
+            report.findings.append(Finding(rel, line_no, "疑似本机绝对路径"))
         if EMAIL_RE.search(line):
             report.findings.append(Finding(rel, line_no, "疑似个人邮箱"))
         if OVERLEAF_ID_RE.search(line) and "OVERLEAF_PROJECT_ID" not in line:
@@ -131,6 +149,15 @@ def scan_manifest(report: AuditReport) -> None:
             report.findings.append(
                 Finding("skill/manifest.json", 0, f"疑似私有 skill 名称: {name}")
             )
+        for field in ("spdx", "redistribute", "commercial_use", "attribution"):
+            if field not in entry:
+                report.findings.append(
+                    Finding(
+                        "skill/manifest.json",
+                        0,
+                        f"skill {name!r} 缺少合规字段 {field!r}",
+                    )
+                )
 
 
 def scan_local_skill_links(report: AuditReport) -> None:

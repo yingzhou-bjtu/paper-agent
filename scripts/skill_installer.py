@@ -49,6 +49,23 @@ def _link(name: str, src: Path) -> str | None:
     return f"已链接: {name} -> {src}"
 
 
+def _print_compliance_hint(name: str, entry: dict) -> None:
+    """Print upstream license reminders when installing skills."""
+    hints: list[str] = []
+    if entry.get("commercial_use") is False:
+        hints.append("禁止商业使用（NonCommercial）")
+    redistribute = entry.get("redistribute", "")
+    if redistribute == "nc_only":
+        hints.append("再分发须遵守 CC-BY-NC 条款")
+    elif redistribute == "verify_upstream":
+        hints.append("发布前请向上游确认 LICENSE")
+    note = entry.get("compliance_notes", "").strip()
+    if note:
+        hints.append(note)
+    if hints:
+        print(f"合规 ({name}): " + "；".join(hints), file=sys.stderr)
+
+
 def install_preset(preset: str = "minimal") -> int:
     data = load_manifest()
     presets = data.get("presets", {})
@@ -70,6 +87,7 @@ def install_preset(preset: str = "minimal") -> int:
             print(f"跳过非开源 skill: {name}", file=sys.stderr)
             skipped += 1
             continue
+        _print_compliance_hint(name, entry)
         try:
             link_path = _ensure_material(entry)
         except (subprocess.CalledProcessError, OSError, ValueError) as exc:

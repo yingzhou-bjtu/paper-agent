@@ -1,9 +1,8 @@
 # paper-agent  Python >=3.10
 #
-# 核心工具（bin/、scripts/）仅使用标准库：
-#   check-cursor-setup, configure-overleaf-cookie, open-overleaf-project,
-#   setup-overleaf-project, test-method-a 等
-# 不安装下列包也可正常运行上述功能。
+# 核心工具（bin/、scripts/）仅使用标准库，无需安装本文件即可运行引导与 Method A。
+# 下列依赖供 skill/ 内上游脚本（文献检索、YAML、PDF 等）按需使用。
+# 许可证说明见 COMPLIANCE.md 与 THIRD_PARTY_NOTICES.md。
 #
 # 安装：pip install -r requirements.txt
 
