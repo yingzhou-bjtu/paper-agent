@@ -1,26 +1,55 @@
 # paper-agent
 
-Write Overleaf papers in Cursor without fighting your toolchain.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-You want local Git, a real editor, and Agent skills—but Overleaf lives in the browser, Workshop needs a cookie on `www.overleaf.com`, and skills are scattered across GitHub. **paper-agent** wires these pieces into one repeatable flow: configure once, deploy a **local replica**, sync through the official Workshop plugin, and optionally install bundled writing skills.
+**Onboarding and tooling for writing Overleaf papers in Cursor.**
 
-**What this is not:** an official Overleaf or Cursor product. The onboarding scripts need only **Python 3.10+** (stdlib). Some bundled skills need extra packages from `requirements.txt`; the guide itself does not.
+Clone your project to disk, sync through [Overleaf Workshop](https://github.com/overleaf-workshop/Overleaf-Workshop), optionally install open-source Agent skills, and verify the setup with one command.
 
-**Tested on:** Linux. Windows has `.ps1` wrappers; Bash is the reference.
-
----
-
-## What you need
-
-- Python 3.10+
-- [Cursor](https://cursor.com) with `cursor` on your `PATH`
-- [Overleaf Workshop](https://github.com/overleaf-workshop/overleaf-workshop) (`iamhyc.overleaf-workshop`)
-- An Overleaf account on `www.overleaf.com`
-- Network access to Overleaf and GitHub (when skills are cloned on demand)
+> **Not affiliated with Overleaf or Cursor.** Community tooling; use at your own risk and follow [Overleaf’s terms](https://www.overleaf.com/legal).
 
 ---
 
-## Quick start (recommended)
+## Table of contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Quick start](#quick-start)
+- [How it works](#how-it-works)
+- [Daily workflow](#daily-workflow)
+- [Configuration](#configuration)
+- [Commands](#commands)
+- [Troubleshooting](#troubleshooting)
+- [Agent skills](#agent-skills)
+- [Docs & license](#docs--license)
+
+---
+
+## Features
+
+- **One-shot onboarding** — `./paper-agent-guide` runs env setup, health checks, replica deploy, skills, and sync tests.
+- **Method A (local replica)** — Overleaf project on disk + Workshop Local Replica + optional local Git.
+- **Cookie login helper** — configures Workshop for `www.overleaf.com` (SSO) without manual UI copy-paste every time.
+- **Sync verification** — `./bin/test-method-a` checks replica layout, Workshop registration, and `main.tex` parity with the cloud.
+- **Bundled OSS skills** — curated manifest; `./bin/install-skills minimal` symlinks into `.cursor/skills/`.
+- **Stdlib-first** — core scripts use Python 3.10+ only; no Qt, no extra deps for the guide itself.
+
+---
+
+## Requirements
+
+| | |
+|---|---|
+| **Python** | 3.10+ |
+| **Editor** | [Cursor](https://cursor.com) (`cursor` on `PATH`) |
+| **Extension** | [Overleaf Workshop](https://marketplace.visualstudio.com/items?itemName=iamhyc.overleaf-workshop) |
+| **Account** | Overleaf on `www.overleaf.com` |
+| **OS** | Linux (primary); Windows via `bin/*.ps1` + WSL recommended |
+
+---
+
+## Quick start
 
 ```bash
 git clone git@github.com:yingzhou-bjtu/paper-agent.git
@@ -28,200 +57,200 @@ cd paper-agent
 ./paper-agent-guide
 ```
 
-Use `./paper-agent-guide --quick` if you already have a `.env` with project name and ID—it will skip re-prompting when those fields are set.
-
-The guide runs six steps:
-
-1. **`.env`** — project name, project ID, paths (Cookie optional here if you log in via the UI first).
-2. **Check** — Workshop installed and logged in (`./bin/check-cursor-setup`).
-3. **Deploy Method A** — download your project into a local replica (`./bin/setup-overleaf-project`).
-4. **Skills** — symlink six default skills into `.cursor/skills/` (`./bin/install-skills minimal`).
-5. **Verify** — eight checks, including local vs cloud `main.tex` (`./bin/test-method-a`).
-6. **Done** — open the replica and write.
-
-Skip skills: `./paper-agent-guide --skip-skills`
-
----
-
-## Method A in one paragraph
-
-Method A means: pull your Overleaf project as files on disk, point Workshop at that folder as a **Local Replica**, and edit in Cursor. Saves go through Workshop back to Overleaf. We also init a local Git repo in the replica for your own diffs—that is separate from Overleaf’s history. paper-agent does **not** replace Workshop’s sync; it sets the folder and config so Workshop can do its job.
-
-Default replica path: `~/papers/<OVERLEAF_PROJECT_NAME>/method-a` (override with `OVERLEAF_METHOD_A_DIR` in `.env`).
-
----
-
-## Day-to-day use
-
-After setup succeeds:
+Already have a `.env` with project name and ID? Use the quiet path:
 
 ```bash
-./bin/open-overleaf-replica    # open local replica in Cursor (usual path)
-./bin/test-method-a            # re-check sync when something feels off
-./bin/setup-overleaf-project   # re-download from cloud (overwrites local copy—back up first)
+./paper-agent-guide --quick
 ```
 
-To open the remote project in Cursor instead of the replica:
+Skip skill install:
 
 ```bash
-./bin/open-overleaf-project 'Your Overleaf Project Name'
+./paper-agent-guide --skip-skills
 ```
 
-**Typical loop:** open replica → edit LaTeX → save → confirm on overleaf.com → occasionally run `test-method-a`.
+**Before you run:** create an Overleaf project and note its **name** and **project ID** (from the URL: `/project/<id>`). For `www.overleaf.com` you will need a session cookie—see [Cookie login](#cookie-login).
 
 ---
 
-## Manual setup (when the guide fails mid-way)
+## How it works
 
-Run commands one at a time so you know which step broke:
+```
+Overleaf (cloud)  ←—— Workshop sync ——→  local replica/  ←—— you edit ——→  Cursor
+                                              │
+                                              └── git/ (optional local history)
+```
+
+The guide does six things:
+
+1. Write `.env` (project id/name, paths).
+2. Check Workshop is installed and logged in.
+3. Download the project ZIP → `~/papers/<name>/method-a` (configurable).
+4. Write `.overleaf/settings.json` and register a **Local Replica**.
+5. Symlink default [Agent skills](#agent-skills) into `.cursor/skills/`.
+6. Run eight checks via `./bin/test-method-a`.
+
+paper-agent does **not** implement its own Overleaf sync protocol—it prepares the folder and config so Workshop can sync on save.
+
+---
+
+## Daily workflow
 
 ```bash
-./bin/setup-env                              # interactive .env
-./bin/check-cursor-setup                     # must show OK
-./bin/configure-overleaf-cookie              # after putting OVERLEAF_COOKIE in .env
-./bin/setup-overleaf-project                 # creates / refreshes replica
-./bin/install-skills minimal                 # then restart Cursor
-./bin/test-method-a                          # aim for 8/8 PASS
+./bin/open-overleaf-replica      # open replica in Cursor (usual)
+./bin/test-method-a              # when sync feels wrong
+./bin/setup-overleaf-project     # re-pull from cloud (overwrites local—backup first)
 ```
 
-**Cookie:** log into Overleaf in the browser → DevTools → Application → Cookies → copy `overleaf_session2`. Put it in `.env` as `OVERLEAF_COOKIE=...` rather than passing it on the command line (see [SECURITY.md](SECURITY.md)).
+Open the remote virtual workspace instead of the replica:
 
-**Project ID:** from the URL `https://www.overleaf.com/project/<24-char-hex>`.
-
----
-
-## Configuration (`.env`)
-
-Copy `.env.example` or run `./bin/setup-env`. **Never commit `.env`**—it is gitignored.
-
-| Variable | Required | Notes |
-|----------|----------|--------|
-| `OVERLEAF_PROJECT_NAME` | Yes | Name shown in Overleaf UI |
-| `OVERLEAF_PROJECT_ID` | Yes | 24-character hex from project URL |
-| `OVERLEAF_COOKIE` | Usually | Session cookie; can be set via configure script |
-| `OVERLEAF_METHOD_A_DIR` | No | Default `~/papers/<name>/method-a` |
-| `PAPER_AGENT_ROOT` | No | Leave empty to auto-detect repo root |
-| `REFERENCES_DIR` | No | Default `参考文献` (relative to repo) |
-| `EXPERIMENT_CODE_DIR` | No | Default `实验代码` (relative to repo) |
-
-Use **relative paths** inside the repo and `~/...` for the replica under your home directory. Avoid hard-coded machine-specific absolute paths.
-
----
-
-## When something breaks
-
-Work through these in order. Each symptom maps to one likely cause and one fix.
-
-### Login and Cursor
-
-- **`check-cursor-setup` says ACTION REQUIRED** — Cookie missing or expired. Log in again in the browser, refresh the cookie, run `./bin/configure-overleaf-cookie`, restart Cursor.
-- **Deploy fails with HTTP 403** — Wrong project ID or bad cookie. Fix `.env` and refresh the cookie.
-- **`cursor: command not found`** — In Cursor: Command Palette → “Install 'cursor' command in PATH”.
-- **“No Workshop login info”** — Run configure script; confirm `CURSOR_USER_DATA_DIR` is empty (auto-detect) unless you use a custom install.
-
-### `.env` and paths
-
-- **“Set OVERLEAF_PROJECT_NAME and OVERLEAF_PROJECT_ID”** — Run `./bin/setup-env` or edit `.env`.
-- **`open-overleaf-replica` opens the wrong folder** — Set `OVERLEAF_PROJECT_NAME` or `OVERLEAF_METHOD_A_DIR`.
-
-### `test-method-a` failures
-
-| Failed check | What to do |
-|--------------|------------|
-| Replica directory missing | `./bin/setup-overleaf-project` |
-| No `main.tex` | Ensure main file exists on Overleaf; redeploy |
-| Bad `settings.json` | Redeploy; do not hand-edit unless you know the Workshop URI format |
-| Cookie invalid | Refresh cookie |
-| Local Replica not registered | Open the replica folder once in Cursor; check Workshop panel |
-| Local ≠ remote `main.tex` | Save in Cursor to push, or redeploy to pull cloud (**wipes local changes**) |
-
-Success looks like:
-
-```text
-结果: 通过
+```bash
+./bin/open-overleaf-project 'My Paper Title'
 ```
 
-(Optional stress test: `./bin/test-method-a --live`—briefly touches `main.tex`.)
+### Manual setup
 
-### Skills
+If the guide stops midway, run steps individually:
 
-- **Skills not visible in Cursor** — Run `./bin/install-skills minimal`, **restart Cursor**.
-- **Clone / network errors** — Retry with network; or clone repos listed in `skill/manifest.json` by hand.
-- **Compliance warnings on install** — Informational; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before redistributing a fork.
+```bash
+./bin/setup-env
+./bin/check-cursor-setup          # expect [OK]
+./bin/configure-overleaf-cookie   # after OVERLEAF_COOKIE is in .env
+./bin/setup-overleaf-project
+./bin/install-skills minimal      # restart Cursor after
+./bin/test-method-a               # aim for 8× PASS
+```
 
-Private skills (e.g. personal writing skills) belong in `~/.cursor/skills/`, not in this repo.
+### Cookie login
 
-### Python and OS
+For SSO servers like `www.overleaf.com`, Workshop needs **Login with Cookies** (same as the [Workshop docs](https://github.com/overleaf-workshop/Overleaf-Workshop#how-to-login-with-cookies)):
 
-- **Script errors on old Python** — Upgrade to 3.10+.
-- **`ModuleNotFoundError` from a skill** — `pip install -r requirements.txt` (skills only; not required for the guide).
-- **Windows quirks** — Prefer WSL; or use `bin/*.ps1` and set Cursor paths explicitly if auto-detect fails.
+1. Log into Overleaf in your browser.
+2. DevTools → **Network** → load the project list → pick a `/project` request.
+3. Copy the `Cookie` header value (`overleaf_session2=...`).
+4. Put it in `.env` as `OVERLEAF_COOKIE=...`, then run `./bin/configure-overleaf-cookie`.
+
+Prefer `.env` over `--cookie '...'` on the command line ([SECURITY.md](SECURITY.md)).
 
 ---
 
-## Ready-to-write checklist
+## Configuration
 
-- [ ] `./bin/check-cursor-setup` → OK
-- [ ] `./bin/test-method-a` → 8/8 PASS
-- [ ] `./bin/open-overleaf-replica` opens the right project in Workshop
-- [ ] Saving `main.tex` updates the project on overleaf.com
-- [ ] `git status` does not list `.env`
+Copy [`.env.example`](.env.example) or run `./bin/setup-env`. **Do not commit `.env`.**
+
+| Variable | Required | Description |
+|----------|:--------:|-------------|
+| `OVERLEAF_PROJECT_NAME` | ✓ | Name in the Overleaf UI |
+| `OVERLEAF_PROJECT_ID` | ✓ | 24-char hex from project URL |
+| `OVERLEAF_COOKIE` | * | Session cookie for deploy / API checks |
+| `OVERLEAF_METHOD_A_DIR` | | Default `~/papers/<name>/method-a` |
+| `PAPER_AGENT_ROOT` | | Leave empty → auto-detect repo root |
+| `REFERENCES_DIR` | | Default `参考文献` (relative to repo) |
+| `EXPERIMENT_CODE_DIR` | | Default `实验代码` (relative to repo) |
+
+\* Required unless Workshop is already logged in and checks pass.
+
+Use **relative paths** inside the repo and `~/...` for the replica. Avoid machine-specific absolute paths.
+
+---
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| [`./paper-agent-guide`](paper-agent-guide) | Full onboarding wizard |
+| `./bin/setup-env` | Interactive `.env` |
+| `./bin/check-cursor-setup` | Workshop install + login |
+| `./bin/configure-overleaf-cookie` | Apply cookie to Cursor state |
+| `./bin/setup-overleaf-project` | Deploy / refresh local replica |
+| `./bin/open-overleaf-replica` | `cursor -r` on replica |
+| `./bin/open-overleaf-project` | Open remote Overleaf project |
+| `./bin/test-method-a` | Verify replica + sync (`--live` for push test) |
+| `./bin/install-skills [preset]` | Link skills (`minimal`, `research`, …) |
+| `./bin/audit-release` | Privacy / compliance scan (maintainers) |
+| `./bin/vendor-skills --all` | Re-download vendored skills (maintainers) |
+
+Presets are defined in [`skill/manifest.json`](skill/manifest.json).
+
+---
+
+## Troubleshooting
+
+<details>
+<summary><strong>Workshop not logged in / ACTION REQUIRED</strong></summary>
+
+Refresh the cookie in the browser, update `.env`, run `./bin/configure-overleaf-cookie`, **restart Cursor**.
+</details>
+
+<details>
+<summary><strong>HTTP 403 when deploying</strong></summary>
+
+Wrong `OVERLEAF_PROJECT_ID` or expired cookie. Fix `.env` and refresh the session.
+</details>
+
+<details>
+<summary><strong><code>cursor</code> not found</strong></summary>
+
+Cursor → Command Palette → **Shell Command: Install 'cursor' command in PATH**.
+</details>
+
+<details>
+<summary><strong><code>test-method-a</code> failures</strong></summary>
+
+| Check fails | Fix |
+|-------------|-----|
+| Replica missing | `./bin/setup-overleaf-project` |
+| No `main.tex` | Add main file on Overleaf; redeploy |
+| Bad `settings.json` | Redeploy; avoid hand-editing unless you know the Workshop URI |
+| Local Replica not registered | Open replica folder once in Cursor; check Workshop panel |
+| Local ≠ remote `main.tex` | Save in Cursor to push, or redeploy to pull (**destroys unsynced local edits**) |
+
+You want eight `[PASS]` lines and `结果: 通过` at the end.
+</details>
+
+<details>
+<summary><strong>Skills not showing in Cursor</strong></summary>
+
+Run `./bin/install-skills minimal`, then **restart Cursor**. Skills live under `.cursor/skills/` (gitignored symlinks).
+</details>
+
+<details>
+<summary><strong><code>ModuleNotFoundError</code> from a skill script</strong></summary>
+
+`pip install -r requirements.txt` — only needed for skill scripts, not for the guide.
+</details>
+
+More detail: [SECURITY.md](SECURITY.md) · [COMPLIANCE.md](COMPLIANCE.md)
 
 ---
 
 ## Agent skills
 
-Open-source skills only (`skill/manifest.json`, `open_source: true`). Default bundle:
+Open-source skills only (`open_source: true` in the manifest). Default bundle:
 
 ```bash
 ./bin/install-skills minimal
 ```
 
-Other presets: `research`, `ccf`, `ieee`, `figure`. Licenses differ by upstream package—**`academic-research-skills` is CC-BY-NC (no commercial use)**. Details: [COMPLIANCE.md](COMPLIANCE.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Some upstream licenses differ (e.g. **CC-BY-NC** on `academic-research-skills` — no commercial use). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-You are responsible for your venue’s AI and authorship rules when using writing skills.
-
----
-
-## Command reference
-
-| Command | Purpose |
-|---------|---------|
-| `./paper-agent-guide` | Full onboarding |
-| `./bin/setup-env` | Create / update `.env` |
-| `./bin/check-cursor-setup` | Workshop health check |
-| `./bin/configure-overleaf-cookie` | Write cookie into Cursor state |
-| `./bin/setup-overleaf-project` | Deploy or refresh Method A replica |
-| `./bin/open-overleaf-replica` | Open replica in Cursor |
-| `./bin/open-overleaf-project` | Open remote Overleaf project |
-| `./bin/test-method-a` | Verify replica and sync |
-| `./bin/install-skills` | Link skills into `.cursor/skills/` |
-| `./bin/audit-release` | Pre-push privacy / compliance scan |
-
-Maintainers: `./bin/vendor-skills --all` to refresh vendored copies; update `THIRD_PARTY_NOTICES.md` when the manifest changes.
+You are responsible for your venue’s AI and authorship policies.
 
 ---
 
-## Legal and security
+## Docs & license
 
-| Doc | Topic |
-|-----|--------|
-| [LICENSE](LICENSE) | paper-agent code (MIT) |
+| Document | |
+|----------|--|
 | [COMPLIANCE.md](COMPLIANCE.md) | Redistribution, disclaimers, academic use |
-| [SECURITY.md](SECURITY.md) | Cookies, `.env`, reporting issues |
+| [SECURITY.md](SECURITY.md) | Cookies, secrets, reporting |
 | [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) | Upstream skill licenses |
+| [skill/README.md](skill/README.md) | Skill layout and presets |
+
+**License:** [MIT](LICENSE) for paper-agent code. Bundled skills remain under their upstream licenses.
 
 ---
 
-## Repository layout
-
-```text
-paper-agent/
-├── paper-agent-guide     # entrypoint
-├── bin/                  # shell wrappers
-├── scripts/              # Python implementation
-├── skill/                # vendored skills + manifest.json
-├── templates/
-├── 参考文献/  实验代码/   # local work dirs (names kept as in repo)
-└── .env                  # your config (not in git)
-```
+<p align="center">
+  <sub>Built for researchers who want Overleaf collaboration and a local editor in the same loop.</sub>
+</p>
