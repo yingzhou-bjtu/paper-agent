@@ -1,5 +1,9 @@
 # paper-agent
 
+<p align="center">
+  <img src="assets/logo.png" alt="paper-agent logo" width="160">
+</p>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
@@ -17,6 +21,7 @@ Clone your project to disk, sync through [Overleaf Workshop](https://github.com/
 - [Features](#features)
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
+- [Cookie login](#cookie-login) · [获取 Cookie（中文）](#获取-overleaf-cookie中文步骤)
 - [How it works](#how-it-works)
 - [Daily workflow](#daily-workflow)
 - [Configuration](#configuration)
@@ -85,7 +90,7 @@ Skip skill install:
 ./paper-agent-guide --skip-skills
 ```
 
-**Before you run:** create an Overleaf project and note its **name** and **project ID** (from the URL: `/project/<id>`). For `www.overleaf.com` you will need a session cookie—see [Cookie login](#cookie-login).
+**Before you run:** create an Overleaf project and note its **name** and **project ID** (from the URL: `/project/<id>`). For `www.overleaf.com` you will need a session cookie—see [Cookie login](#cookie-login) (English) or [获取 Overleaf Cookie（中文）](#获取-overleaf-cookie中文步骤).
 
 ---
 
@@ -139,14 +144,119 @@ If the guide stops midway, run steps individually:
 
 ### Cookie login
 
-For SSO servers like `www.overleaf.com`, Workshop needs **Login with Cookies** (same as the [Workshop docs](https://github.com/overleaf-workshop/Overleaf-Workshop#how-to-login-with-cookies)):
+`www.overleaf.com` uses SSO. The Overleaf Workshop extension cannot use a normal username/password dialog—you must paste a **session cookie** once (same as the [Workshop docs](https://github.com/overleaf-workshop/Overleaf-Workshop#how-to-login-with-cookies)).
 
-1. Log into Overleaf in your browser.
-2. DevTools → **Network** → load the project list → pick a `/project` request.
-3. Copy the `Cookie` header value (`overleaf_session2=...`).
-4. Put it in `.env` as `OVERLEAF_COOKIE=...`, then run `./bin/configure-overleaf-cookie`.
+**When you need it:** deploying the local replica (`setup-overleaf-project`), opening the remote project, or when `check-cursor-setup` reports cookie/login errors.
 
-Prefer `.env` over `--cookie '...'` on the command line ([SECURITY.md](SECURITY.md)).
+**What to copy:** the cookie named **`overleaf_session2`** (value is a long random string).  
+You can paste either `overleaf_session2=<value>` **or** the full `Cookie:` header from DevTools—`configure-overleaf-cookie` keeps only the first `name=value` pair.
+
+#### Method A — Application tab (recommended)
+
+Works in **Chrome / Edge / Brave** (Chromium):
+
+1. Log in at [https://www.overleaf.com](https://www.overleaf.com) in your browser.
+2. Press **F12** (or right-click → **Inspect**) to open DevTools.
+3. Open the **Application** tab (Chrome) or **Storage** tab (Firefox).
+4. In the left sidebar: **Storage → Cookies → `https://www.overleaf.com`**.
+5. Find the row **`overleaf_session2`**, click it, and copy the **Value** column (double-click the value → Ctrl+C).
+6. In `paper-agent/.env`, set:
+
+   ```env
+   OVERLEAF_COOKIE=overleaf_session2=PASTE_THE_VALUE_HERE
+   ```
+
+   Use the real value with **no** quotes unless your shell requires them inside `.env`.
+
+7. Apply it to Cursor Workshop:
+
+   ```bash
+   ./bin/configure-overleaf-cookie
+   ```
+
+8. **Restart Cursor**, then open the Overleaf Workshop sidebar and refresh your project list.
+
+#### Method B — Network tab (full Cookie header)
+
+1. Log in at [https://www.overleaf.com](https://www.overleaf.com).
+2. Open DevTools → **Network**.
+3. Refresh the page or open your project list so a request to `www.overleaf.com` appears.
+4. Click any request to `www.overleaf.com` (e.g. `/project`, `/project/<id>`, or the document).
+5. In **Headers → Request Headers**, find **`Cookie:`**.
+6. Copy the entire cookie string, or only the `overleaf_session2=...` segment (stop at the next `;` if copying manually).
+7. Put it in `.env` as `OVERLEAF_COOKIE=...`, then run `./bin/configure-overleaf-cookie` and restart Cursor.
+
+#### Example `.env` line
+
+```env
+OVERLEAF_COOKIE=overleaf_session2=s%3Axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+```
+
+(Your value will differ; it often starts with `s%3A` and contains a dot.)
+
+#### Verify
+
+```bash
+./bin/check-cursor-setup    # should show login OK for www.overleaf.com
+./bin/test-method-a           # after replica is deployed
+```
+
+#### If deploy fails with HTTP 403
+
+The cookie may be **expired** or the **project ID** is wrong. Log in again in the browser, copy a fresh `overleaf_session2`, update `.env`, run `./bin/configure-overleaf-cookie`, and restart Cursor.
+
+#### Security
+
+- `overleaf_session2` is equivalent to your logged-in session—**do not commit `.env`**, paste it in chat, or share screenshots that show the value.
+- Prefer `.env` over `./bin/configure-overleaf-cookie --cookie '...'` on the command line (visible in `ps`). See [SECURITY.md](SECURITY.md).
+
+---
+
+### 获取 Overleaf Cookie（中文步骤）
+
+**为什么需要：** 在 `www.overleaf.com` 上，Overleaf Workshop 插件使用 **Cookie 登录**，不能用网页账号密码直接填进插件。paper-agent 需要 Cookie 才能从云端拉取项目、检查登录状态。
+
+**要复制哪一项：** 浏览器里名为 **`overleaf_session2`** 的 Cookie（一长串字符）。
+
+#### 方法一：Application / 应用（推荐）
+
+1. 浏览器打开 [https://www.overleaf.com](https://www.overleaf.com) 并**登录**。
+2. 按 **F12** 打开开发者工具。
+3. 切到 **Application（应用）** 面板（Firefox 为 **存储**）。
+4. 左侧展开：**Cookies → `https://www.overleaf.com`**。
+5. 在列表中找到 **`overleaf_session2`**，复制右侧 **Value（值）** 整段。
+6. 编辑 `paper-agent/.env`，写入：
+
+   ```env
+   OVERLEAF_COOKIE=overleaf_session2=这里粘贴刚才复制的值
+   ```
+
+7. 在仓库根目录执行：
+
+   ```bash
+   ./bin/configure-overleaf-cookie
+   ```
+
+8. **重启 Cursor**，在 Overleaf Workshop 侧边栏刷新项目列表。
+
+#### 方法二：Network / 网络
+
+1. 登录 Overleaf 后打开开发者工具 → **Network（网络）**。
+2. 刷新页面或打开项目列表。
+3. 选中任意一条 `www.overleaf.com` 的请求。
+4. 在 **Headers（标头）→ Request Headers** 里找到 **`Cookie:`**。
+5. 复制整段 Cookie，或只复制 `overleaf_session2=...`（到下一个分号 `;` 为止）。
+6. 写入 `.env` 的 `OVERLEAF_COOKIE=`，再执行 `./bin/configure-overleaf-cookie`，重启 Cursor。
+
+#### 常见问题
+
+| 现象 | 处理 |
+| --- | --- |
+| `check-cursor-setup` 提示未登录 | Cookie 未配置或已过期，按上面步骤重新复制 |
+| 部署项目 HTTP 403 | 检查 `OVERLEAF_PROJECT_ID` 是否正确；重新登录 Overleaf 并更新 Cookie |
+| Cookie 多久失效 | 随 Overleaf 会话过期，失效后按同样步骤重新获取 |
+
+**注意：** Cookie 相当于登录凭证，不要提交到 Git、不要发到公开渠道。`.env` 已在 `.gitignore` 中。
 
 ---
 
@@ -158,7 +268,7 @@ Copy [`.env.example`](.env.example) or run `./bin/setup-env`. **Do not commit `.
 |----------|:--------:|-------------|
 | `OVERLEAF_PROJECT_NAME` | ✓ | Name in the Overleaf UI |
 | `OVERLEAF_PROJECT_ID` | ✓ | 24-char hex from project URL |
-| `OVERLEAF_COOKIE` | * | Session cookie for deploy / API checks |
+| `OVERLEAF_COOKIE` | * | Session cookie (`overleaf_session2=...`) for deploy / API checks — see [Cookie login](#cookie-login) |
 | `OVERLEAF_METHOD_A_DIR` | | Default `../papers/<name>/method-a` |
 | `PAPER_AGENT_ROOT` | | Leave empty → auto-detect repo root |
 | `REFERENCES_DIR` | | Default `参考文献` (relative to repo) |
