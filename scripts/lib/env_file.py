@@ -20,7 +20,22 @@ _SENSITIVE_KEYS = frozenset(
 
 
 def project_root() -> Path:
-    return Path(os.environ.get("PAPER_AGENT_ROOT", ROOT)).expanduser().resolve()
+    raw = os.environ.get("PAPER_AGENT_ROOT", "").strip()
+    if not raw or raw in {".", "./"}:
+        return ROOT.resolve()
+    path = Path(raw).expanduser()
+    if path.is_absolute():
+        return path.resolve()
+    return (ROOT / path).resolve()
+
+
+def resolve_config_path(value: str, *, base: Path | None = None) -> Path:
+    """Expand ~ and resolve paths relative to the project root."""
+    base = (base or project_root()).resolve()
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path.resolve()
+    return (base / path).resolve()
 
 
 def default_method_a_dir() -> Path:
@@ -28,6 +43,21 @@ def default_method_a_dir() -> Path:
     if name:
         return Path.home() / "papers" / name / "method-a"
     return Path.home() / "papers" / "method-a"
+
+
+def default_method_a_dir_value(project_name: str = "") -> str:
+    """Portable .env value for Method A replica (under user home)."""
+    name = project_name or env_get("OVERLEAF_PROJECT_NAME")
+    if name:
+        return f"~/papers/{name}/method-a"
+    return ""
+
+
+def method_a_replica_dir() -> Path:
+    custom = env_get("OVERLEAF_METHOD_A_DIR")
+    if custom:
+        return resolve_config_path(custom)
+    return default_method_a_dir().expanduser().resolve()
 
 
 def default_references_dir() -> Path:
@@ -45,26 +75,25 @@ def build_default_env_values(
 ) -> dict[str, str]:
     """Build a full .env value map from defaults and optional existing entries."""
     existing = dict(existing or {})
-    base_root = (root or project_root()).expanduser().resolve()
-    root_str = str(base_root)
+    base_root = (root or ROOT).resolve()
     project_id = existing.get("OVERLEAF_PROJECT_ID") or ""
     project_name = existing.get("OVERLEAF_PROJECT_NAME") or ""
+    method_a = existing.get("OVERLEAF_METHOD_A_DIR")
+    if not method_a and project_name:
+        method_a = default_method_a_dir_value(project_name)
     return {
-        "PAPER_AGENT_ROOT": existing.get("PAPER_AGENT_ROOT") or root_str,
-        "CURSOR_USER_DATA_DIR": existing.get("CURSOR_USER_DATA_DIR")
-        or default_cursor_user_data_dir(),
-        "CURSOR_EXTENSIONS_DIR": existing.get("CURSOR_EXTENSIONS_DIR")
-        or default_cursor_extensions_dir(),
+        "PAPER_AGENT_ROOT": existing.get("PAPER_AGENT_ROOT", ""),
+        "CURSOR_USER_DATA_DIR": existing.get("CURSOR_USER_DATA_DIR", ""),
+        "CURSOR_EXTENSIONS_DIR": existing.get("CURSOR_EXTENSIONS_DIR", ""),
         "OVERLEAF_SERVER_NAME": existing.get("OVERLEAF_SERVER_NAME") or "www.overleaf.com",
         "OVERLEAF_SERVER_URL": existing.get("OVERLEAF_SERVER_URL") or "https://www.overleaf.com/",
         "OVERLEAF_PROJECT_NAME": project_name,
         "OVERLEAF_PROJECT_ID": project_id,
         "OVERLEAF_USER_EMAIL": existing.get("OVERLEAF_USER_EMAIL") or "",
         "OVERLEAF_COOKIE": existing.get("OVERLEAF_COOKIE") or "",
-        "OVERLEAF_METHOD_A_DIR": existing.get("OVERLEAF_METHOD_A_DIR")
-        or str(default_method_a_dir()),
-        "REFERENCES_DIR": existing.get("REFERENCES_DIR") or str(base_root / "参考文献"),
-        "EXPERIMENT_CODE_DIR": existing.get("EXPERIMENT_CODE_DIR") or str(base_root / "实验代码"),
+        "OVERLEAF_METHOD_A_DIR": method_a or "",
+        "REFERENCES_DIR": existing.get("REFERENCES_DIR") or "参考文献",
+        "EXPERIMENT_CODE_DIR": existing.get("EXPERIMENT_CODE_DIR") or "实验代码",
         "OPENALEX_POLITE_EMAIL": existing.get("OPENALEX_POLITE_EMAIL") or "",
         "CROSSREF_POLITE_EMAIL": existing.get("CROSSREF_POLITE_EMAIL") or "",
         "S2_API_KEY": existing.get("S2_API_KEY") or "",
@@ -127,8 +156,61 @@ def load_project_env() -> dict[str, str]:
     return apply_env_file(env_path)
 
 
+def relativize_env_values(values: dict[str, str], repo_root: Path | None = None) -> dict[str, str]:
+    """Rewrite absolute paths in .env as repo-relative or ~/ paths where possible."""
+    repo_root = (repo_root or ROOT).resolve()
+    home = Path.home()
+    out = dict(values)
+
+    root_val = out.get("PAPER_AGENT_ROOT", "").strip()
+    if root_val:
+        try:
+            resolved = Path(root_val).expanduser().resolve()
+            rel = resolved.relative_to(repo_root)
+            out["PAPER_AGENT_ROOT"] = "" if str(rel) in {"", "."} else str(rel)
+        except ValueError:
+            pass
+    else:
+        out["PAPER_AGENT_ROOT"] = ""
+
+    for key in ("REFERENCES_DIR", "EXPERIMENT_CODE_DIR"):
+        val = out.get(key, "").strip()
+        if not val:
+            continue
+        try:
+            resolved = Path(val).expanduser().resolve()
+            out[key] = str(resolved.relative_to(repo_root))
+        except ValueError:
+            pass
+
+    method_a = out.get("OVERLEAF_METHOD_A_DIR", "").strip()
+    if method_a:
+        try:
+            resolved = Path(method_a).expanduser().resolve()
+            out["OVERLEAF_METHOD_A_DIR"] = f"~/{resolved.relative_to(home).as_posix()}"
+        except ValueError:
+            pass
+
+    for key, default_fn in (
+        ("CURSOR_USER_DATA_DIR", default_cursor_user_data_dir),
+        ("CURSOR_EXTENSIONS_DIR", default_cursor_extensions_dir),
+    ):
+        val = out.get(key, "").strip()
+        if not val:
+            out[key] = ""
+            continue
+        try:
+            if Path(val).expanduser().resolve() == Path(default_fn()).expanduser().resolve():
+                out[key] = ""
+        except OSError:
+            pass
+
+    return out
+
+
 def write_env_file(values: dict[str, str], path: Path | None = None) -> Path:
     path = path or ENV_PATH
+    values = relativize_env_values(values, ROOT)
     lines: list[str] = [
         "# paper-agent 环境配置",
         "# 由 setup-env 生成；敏感项请勿提交到 Git",
@@ -175,7 +257,7 @@ def write_env_file(values: dict[str, str], path: Path | None = None) -> Path:
     ]
 
     key_help = {
-        "PAPER_AGENT_ROOT": "paper-agent 仓库根目录",
+        "PAPER_AGENT_ROOT": "留空 = 自动检测仓库根；或填相对路径如 .",
         "CURSOR_USER_DATA_DIR": "Cursor 用户数据目录",
         "CURSOR_EXTENSIONS_DIR": "Cursor 扩展安装目录",
         "OVERLEAF_SERVER_NAME": "Overleaf 服务器名",
@@ -233,8 +315,11 @@ def env_get(key: str, default: str = "") -> str:
 def env_path(key: str, default: Path | str) -> Path:
     value = env_get(key)
     if value:
-        return Path(value).expanduser()
-    return Path(default).expanduser()
+        return resolve_config_path(value)
+    default_path = Path(default).expanduser()
+    if default_path.is_absolute() or str(default).startswith("~"):
+        return default_path.resolve()
+    return (project_root() / default_path).resolve()
 
 
 def shell_exports(path: Path | None = None) -> str:

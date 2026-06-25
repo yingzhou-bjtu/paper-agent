@@ -15,7 +15,6 @@ from scripts.lib.env_file import (  # noqa: E402
     ENV_PATH,
     build_default_env_values,
     parse_env_file,
-    project_root,
     write_env_file,
 )
 from scripts.lib.terminal import (  # noqa: E402
@@ -30,7 +29,7 @@ from scripts.lib.terminal import (  # noqa: E402
 
 
 def _build_defaults(existing: dict[str, str]) -> dict[str, str]:
-    return build_default_env_values(existing, root=project_root())
+    return build_default_env_values(existing)
 
 
 def _print_banner() -> None:

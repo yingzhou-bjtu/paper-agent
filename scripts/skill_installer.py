@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -45,8 +46,9 @@ def _link(name: str, src: Path) -> str | None:
     dest = DEST / name
     if dest.is_symlink() or dest.exists():
         dest.unlink()
-    dest.symlink_to(src.resolve(), target_is_directory=True)
-    return f"已链接: {name} -> {src}"
+    rel_target = os.path.relpath(src.resolve(), dest.parent.resolve())
+    dest.symlink_to(rel_target, target_is_directory=True)
+    return f"已链接: {name} -> {rel_target}"
 
 
 def _print_compliance_hint(name: str, entry: dict) -> None:

@@ -3,11 +3,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=../scripts/lib/load-env.sh
 source "$ROOT/scripts/lib/load-env.sh"
-if [[ -n "${OVERLEAF_METHOD_A_DIR:-}" ]]; then
-  REPLICA_DIR="$OVERLEAF_METHOD_A_DIR"
-elif [[ -n "${OVERLEAF_PROJECT_NAME:-}" ]]; then
-  REPLICA_DIR="$HOME/papers/$OVERLEAF_PROJECT_NAME/method-a"
-else
-  REPLICA_DIR="$HOME/papers/method-a"
-fi
+REPLICA_DIR="$(python3 -c "
+import sys
+from pathlib import Path
+sys.path.insert(0, '${ROOT}')
+import scripts.lib.bootstrap  # noqa: F401
+from scripts.lib.env_file import method_a_replica_dir
+print(method_a_replica_dir())
+")"
 exec cursor -r "$REPLICA_DIR" "$@"
