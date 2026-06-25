@@ -38,18 +38,24 @@ def resolve_config_path(value: str, *, base: Path | None = None) -> Path:
     return (base / path).resolve()
 
 
+def papers_dir() -> Path:
+    """Sibling ``papers/`` directory next to the repo (workspace layout)."""
+    return project_root().parent / "papers"
+
+
 def default_method_a_dir() -> Path:
     name = env_get("OVERLEAF_PROJECT_NAME")
+    base = papers_dir()
     if name:
-        return Path.home() / "papers" / name / "method-a"
-    return Path.home() / "papers" / "method-a"
+        return base / name / "method-a"
+    return base / "method-a"
 
 
 def default_method_a_dir_value(project_name: str = "") -> str:
-    """Portable .env value for Method A replica (under user home)."""
+    """Portable .env value: replica under ``../papers/<project>/method-a``."""
     name = project_name or env_get("OVERLEAF_PROJECT_NAME")
     if name:
-        return f"~/papers/{name}/method-a"
+        return f"../papers/{name}/method-a"
     return ""
 
 
@@ -187,7 +193,10 @@ def relativize_env_values(values: dict[str, str], repo_root: Path | None = None)
     if method_a:
         try:
             resolved = Path(method_a).expanduser().resolve()
-            out["OVERLEAF_METHOD_A_DIR"] = f"~/{resolved.relative_to(home).as_posix()}"
+            try:
+                out["OVERLEAF_METHOD_A_DIR"] = str(resolved.relative_to(repo_root))
+            except ValueError:
+                out["OVERLEAF_METHOD_A_DIR"] = f"~/{resolved.relative_to(home).as_posix()}"
         except ValueError:
             pass
 
@@ -266,7 +275,7 @@ def write_env_file(values: dict[str, str], path: Path | None = None) -> Path:
         "OVERLEAF_PROJECT_ID": "默认 Overleaf 项目 ID",
         "OVERLEAF_USER_EMAIL": "Overleaf 登录邮箱",
         "OVERLEAF_COOKIE": "Cookie 登录凭证（overleaf_session2=...）",
-        "OVERLEAF_METHOD_A_DIR": "Method A 本地副本目录",
+        "OVERLEAF_METHOD_A_DIR": "Method A 本地副本目录（默认 ../papers/<项目名>/method-a）",
         "REFERENCES_DIR": "参考文献目录",
         "EXPERIMENT_CODE_DIR": "实验代码目录",
         "OPENALEX_POLITE_EMAIL": "OpenAlex polite pool 邮箱",

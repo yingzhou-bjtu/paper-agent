@@ -13,6 +13,7 @@ Clone your project to disk, sync through [Overleaf Workshop](https://github.com/
 
 ## Table of contents
 
+- [Workspace layout](#workspace-layout)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
@@ -23,6 +24,20 @@ Clone your project to disk, sync through [Overleaf Workshop](https://github.com/
 - [Troubleshooting](#troubleshooting)
 - [Agent skills](#agent-skills)
 - [Docs & license](#docs--license)
+
+---
+
+## Workspace layout
+
+Keep the **git repo** and **local Overleaf replicas** under one parent folder:
+
+```text
+paper-agent-workspace/
+├── paper-agent/          # clone the repo here
+└── papers/               # Method A replicas (../papers/<project>/method-a)
+```
+
+See [docs/workspace-layout.md](docs/workspace-layout.md) for migration steps.
 
 ---
 
@@ -52,8 +67,9 @@ Clone your project to disk, sync through [Overleaf Workshop](https://github.com/
 ## Quick start
 
 ```bash
-git clone git@github.com:yingzhou-bjtu/paper-agent.git
-cd paper-agent
+mkdir -p ~/paper-agent-workspace/papers
+git clone git@github.com:yingzhou-bjtu/paper-agent.git ~/paper-agent-workspace/paper-agent
+cd ~/paper-agent-workspace/paper-agent
 ./paper-agent-guide
 ```
 
@@ -85,7 +101,7 @@ The guide does six things:
 
 1. Write `.env` (project id/name, paths).
 2. Check Workshop is installed and logged in.
-3. Download the project ZIP → `~/papers/<name>/method-a` (configurable).
+3. Download the project ZIP → `../papers/<name>/method-a` (sibling of the repo).
 4. Write `.overleaf/settings.json` and register a **Local Replica**.
 5. Symlink default [Agent skills](#agent-skills) into `.cursor/skills/`.
 6. Run eight checks via `./bin/test-method-a`.
@@ -143,7 +159,7 @@ Copy [`.env.example`](.env.example) or run `./bin/setup-env`. **Do not commit `.
 | `OVERLEAF_PROJECT_NAME` | ✓ | Name in the Overleaf UI |
 | `OVERLEAF_PROJECT_ID` | ✓ | 24-char hex from project URL |
 | `OVERLEAF_COOKIE` | * | Session cookie for deploy / API checks |
-| `OVERLEAF_METHOD_A_DIR` | | Default `~/papers/<name>/method-a` |
+| `OVERLEAF_METHOD_A_DIR` | | Default `../papers/<name>/method-a` |
 | `PAPER_AGENT_ROOT` | | Leave empty → auto-detect repo root |
 | `REFERENCES_DIR` | | Default `参考文献` (relative to repo) |
 | `EXPERIMENT_CODE_DIR` | | Default `实验代码` (relative to repo) |
@@ -245,6 +261,7 @@ You are responsible for your venue’s AI and authorship policies.
 | [COMPLIANCE.md](COMPLIANCE.md) | Redistribution, disclaimers, academic use |
 | [SECURITY.md](SECURITY.md) | Cookies, secrets, reporting |
 | [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) | Upstream skill licenses |
+| [docs/workspace-layout.md](docs/workspace-layout.md) | Parent folder + `papers/` layout |
 | [skill/README.md](skill/README.md) | Skill layout and presets |
 
 **License:** [MIT](LICENSE) for paper-agent code. Bundled skills remain under their upstream licenses.
