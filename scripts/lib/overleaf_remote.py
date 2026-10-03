@@ -90,14 +90,14 @@ class OverleafRemote:
         """Read one document through the fast file-level probe."""
         return self.read(doc_path).content
 
-    def upload(self, doc_path: str, content: bytes) -> None:
+    def upload(self, doc_path: str, content: bytes) -> RemoteDocument:
         """Push whole-file content using the Workshop-compatible node script."""
         with tempfile.NamedTemporaryFile(suffix=".tex", delete=False) as payload:
             payload.write(content)
             payload.flush()
             payload_name = payload.name
         try:
-            self._run_node(
+            result = self._run_node(
                 "push_overleaf_doc.js",
                 self.project_id,
                 "/" + doc_path.strip("/"),
@@ -105,9 +105,24 @@ class OverleafRemote:
             )
         finally:
             os.unlink(payload_name)
-        verified = self.read(doc_path)
-        if verified.content != content:
+        expected_sha256 = hashlib.sha256(content).hexdigest()
+        try:
+            remote_bytes = int(result["bytes"])
+            remote_sha256 = str(result["sha256"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError("Overleaf upload did not return verification metadata") from exc
+        if (
+            result.get("ok") is not True
+            or remote_bytes != len(content)
+            or remote_sha256 != expected_sha256
+        ):
             raise RuntimeError(
                 f"Overleaf file-level verification failed for {doc_path}: "
-                f"local={len(content)} bytes remote={len(verified.content)} bytes"
+                f"local={len(content)}:{expected_sha256} "
+                f"remote={remote_bytes}:{remote_sha256}"
             )
+        return RemoteDocument(
+            content=content,
+            sha256=remote_sha256,
+            version=result.get("version"),
+        )

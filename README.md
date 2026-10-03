@@ -200,8 +200,10 @@ For day-to-day push verification, keep the check lightweight:
 3. Run `./bin/test-method-a` only when sync looks suspicious.
 
 Routine verification reads only the requested document through Overleaf Workshop's
-Socket.IO `joinDoc` path and compares byte count plus SHA-256. Binary uploads use
-the corresponding file endpoint. The project ZIP is used only for initial local
+Socket.IO `joinDoc` path and compares byte count plus SHA-256. A document upload
+performs `applyOtUpdate → leaveDoc → joinDoc` on one Socket.IO connection, then
+returns the server-side byte count, SHA-256, and version. Binary uploads use the
+corresponding file endpoint. The project ZIP is used only for initial local
 replica setup or explicit deep debugging, because its endpoint is slow and can
 make a healthy push look stuck.
 

@@ -8,7 +8,6 @@ import hashlib
 import json
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,15 +26,7 @@ def _digest(content: bytes) -> dict[str, int | str]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("document")
-    parser.add_argument(
-        "--attempts",
-        type=int,
-        default=3,
-        help="文件级回读次数（默认 3，不下载项目 ZIP）。",
-    )
     args = parser.parse_args()
-    if args.attempts < 1:
-        raise ValueError("--attempts 必须大于 0")
 
     replica = Path(env_get("OVERLEAF_METHOD_A_DIR")).expanduser().resolve()
     local = (replica / args.document).resolve()
@@ -71,34 +62,24 @@ def main() -> None:
     print("LOGIN_OK project=" + project.project_id, flush=True)
     print("BACKUP " + str(backup), flush=True)
 
-    if before.content != payload:
-        remote.upload(args.document, payload)
-
-    expected = _digest(payload)
-    for attempt in range(1, args.attempts + 1):
-        after = remote.read(args.document)
-        if after.content == payload:
-            report = {
-                "project_id": project.project_id,
-                "document": args.document,
-                **expected,
-                "remote_version": after.version,
-                "verification": "socket-joinDoc",
-                "attempt": attempt,
-                "verified": True,
-                "backup": str(backup),
-            }
-            (backup / "verification.json").write_text(
-                json.dumps(report, indent=2),
-                encoding="utf-8",
-            )
-            print(json.dumps(report), flush=True)
-            return
-        if attempt < args.attempts:
-            time.sleep(1)
-    raise RuntimeError(
-        "Remote document does not match local bytes after file-level upload verification"
+    after = before if before.content == payload else remote.upload(args.document, payload)
+    report = {
+        "project_id": project.project_id,
+        "document": args.document,
+        **_digest(payload),
+        "remote_version": after.version,
+        "verification": "socket-joinDoc",
+        "attempt": 1,
+        "verified": after.content == payload,
+        "backup": str(backup),
+    }
+    (backup / "verification.json").write_text(
+        json.dumps(report, indent=2),
+        encoding="utf-8",
     )
+    if not report["verified"]:
+        raise RuntimeError("Remote document does not match local bytes after file-level verification")
+    print(json.dumps(report), flush=True)
 
 
 if __name__ == "__main__":

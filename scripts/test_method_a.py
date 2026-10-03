@@ -158,15 +158,16 @@ def run_live_sync_test(replica_dir: Path | None = None) -> tuple[bool, str]:
     main_tex.write_text(modified, encoding="utf-8")
 
     remote = OverleafRemote(session, PROJECT_ID)
+    modified_bytes = modified.encode("utf-8")
+    original_remote_bytes = original_remote.encode("utf-8")
     try:
-        remote.upload("main.tex", modified.encode("utf-8"))
-        remote_after = _read_remote_main_tex(session)
+        remote_after = remote.upload("main.tex", modified_bytes)
 
-        if marker.strip() not in remote_after:
+        if marker.strip() not in remote_after.content.decode("utf-8"):
             main_tex.write_text(original_local, encoding="utf-8")
             return False, "推送后云端未出现测试标记。"
 
-        remote.upload("main.tex", original_remote.encode("utf-8"))
+        remote.upload("main.tex", original_remote_bytes)
         main_tex.write_text(original_local, encoding="utf-8")
         final_remote = _read_remote_main_tex(session)
         if final_remote != original_remote:
@@ -174,6 +175,12 @@ def run_live_sync_test(replica_dir: Path | None = None) -> tuple[bool, str]:
 
         return True, "已完成文件级推送 → joinDoc 哈希回验 → 回滚。"
     except (OSError, subprocess.TimeoutExpired, RuntimeError, ValueError) as exc:
+        try:
+            current_remote = remote.read("main.tex")
+            if current_remote.content == modified_bytes:
+                remote.upload("main.tex", original_remote_bytes)
+        except (OSError, subprocess.TimeoutExpired, RuntimeError, ValueError):
+            pass
         main_tex.write_text(original_local, encoding="utf-8")
         return False, f"执行推送脚本失败: {exc}"
 

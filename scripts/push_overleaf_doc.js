@@ -33,6 +33,15 @@ Module.prototype.require = function patchedRequire(request) {
 
 const fs = require('fs');
 const path = require('path');
+const {
+  connectAndJoinProject,
+  emit,
+  findDocByPath,
+  loadWorkshopApi,
+  normalizeDocPath,
+  readDoc,
+  sha256,
+} = require('./lib/overleaf_socket');
 
 function findExtensionRoot() {
   const home = process.env.USERPROFILE || process.env.HOME;
@@ -47,28 +56,7 @@ function findExtensionRoot() {
 }
 
 const EXT = findExtensionRoot();
-const { BaseAPI } = require(path.join(EXT, 'out/api/base'));
 const DiffMatchPatch = require(path.join(EXT, 'node_modules/diff-match-patch'));
-
-function decodePackedUtf8(text) {
-  return Buffer.from(text, 'latin1').toString('utf-8');
-}
-
-function emit(socket, event, ...args) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`socket timeout: ${event}`)), 15000);
-    socket.emit(event, ...args, (err, ...data) => {
-      clearTimeout(timer);
-      if (err) reject(err);
-      else resolve(data);
-    });
-  });
-}
-
-function loadIdentity(identityFile) {
-  const payload = JSON.parse(fs.readFileSync(identityFile, 'utf-8'));
-  return { identity: payload.identity, url: payload.url || 'https://www.overleaf.com/' };
-}
 
 async function apiResult(promise, action) {
   const result = await promise;
@@ -76,19 +64,6 @@ async function apiResult(promise, action) {
     throw new Error(`${action} failed: ${result.message || JSON.stringify(result)}`);
   }
   return result;
-}
-
-function findDocByPath(folder, targetPath, prefix = '') {
-  const docs = folder.docs || [];
-  for (const doc of docs) {
-    const docPath = `${prefix}/${doc.name}`.replace(/\/+/g, '/');
-    if (docPath === targetPath) return doc;
-  }
-  for (const sub of folder.folders || []) {
-    const found = findDocByPath(sub, targetPath, `${prefix}/${sub.name}`.replace(/\/+/g, '/'));
-    if (found) return found;
-  }
-  return null;
 }
 
 function findFolderByPath(folder, targetPath, prefix = '') {
@@ -162,38 +137,6 @@ function buildUpdate(doc, newContent) {
   };
 }
 
-async function connectSocket(api, identity, query) {
-  const socket = api._initSocketV0(identity, query);
-  await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('socket connect timeout')), 15000);
-    socket.on('connect', () => {
-      clearTimeout(timer);
-      resolve();
-    });
-    socket.on('connect_failed', (err) => {
-      clearTimeout(timer);
-      reject(err || new Error('connect_failed'));
-    });
-    socket.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-  });
-  return socket;
-}
-
-async function joinProject(socket, projectId) {
-  const project = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('joinProjectResponse timeout')), 25000);
-    socket.on('joinProjectResponse', (response) => {
-      clearTimeout(timer);
-      resolve(response.project);
-    });
-    socket.emit('joinProject', { project_id: projectId });
-  });
-  return { socket, project };
-}
-
 async function main() {
   const identityFile = process.argv[2];
   const projectId = process.argv[3];
@@ -214,44 +157,45 @@ async function main() {
     process.exit(1);
   }
 
-  const { identity, url } = loadIdentity(identityFile);
-  const api = new BaseAPI(url);
-  api.setIdentity(identity);
-  let socket = await connectSocket(
-    api,
-    identity,
-    `?projectId=${projectId}&t=${Date.now()}`
-  );
-  socket._api = api;
-  socket._identity = identity;
-
-  let project;
+  const { api, identity } = loadWorkshopApi(identityFile);
+  const joined = await connectAndJoinProject(api, identity, projectId);
+  const { socket, project } = joined;
   try {
-    const joined = await joinProject(socket, projectId);
-    project = joined.project;
-  } catch (err) {
-    throw err;
+    const root = project.rootFolder[0];
+    const doc =
+      findDocByPath(root, docPath) ||
+      (await ensureDocByPath(api, identity, projectId, root, docPath));
+
+    const [docLinesAscii, version] = await emit(socket, 'joinDoc', doc._id, {
+      encodeRanges: true,
+    });
+    const joinedText = docLinesAscii.map((line) => Buffer.from(line, 'latin1').toString('utf-8')).join('\n');
+    doc.localCache = joinedText;
+    doc.remoteCache = joinedText;
+    doc.version = version;
+    doc.lastVersion = version;
+
+    const update = buildUpdate(doc, newContent);
+    if (update.op && update.op.length) {
+      await emit(socket, 'applyOtUpdate', doc._id, update);
+    }
+
+    await emit(socket, 'leaveDoc', doc._id);
+    const verified = await readDoc(socket, project, docPath);
+    const verifiedContent = Buffer.from(verified.content, 'utf-8');
+    console.log(
+      JSON.stringify({
+        ok: true,
+        changed: Boolean(update.op && update.op.length),
+        document: normalizeDocPath(docPath),
+        bytes: verifiedContent.length,
+        sha256: sha256(verifiedContent),
+        version: verified.version,
+      })
+    );
+  } finally {
+    socket.disconnect();
   }
-  const root = project.rootFolder[0];
-  const doc = findDocByPath(root, docPath) || await ensureDocByPath(api, identity, projectId, root, docPath);
-
-  const [docLinesAscii, version] = await emit(socket, 'joinDoc', doc._id, {
-    encodeRanges: true,
-  });
-  const joinedText = docLinesAscii.map((line) => decodePackedUtf8(line)).join('\n');
-  doc.localCache = joinedText;
-  doc.remoteCache = joinedText;
-  doc.version = version;
-  doc.lastVersion = version;
-
-  const update = buildUpdate(doc, newContent);
-  if (update.op && update.op.length) {
-    await emit(socket, 'applyOtUpdate', doc._id, update);
-  }
-
-  await emit(socket, 'leaveDoc', doc._id);
-  socket.disconnect();
-  console.log(JSON.stringify({ ok: true, document: docPath.replace(/^\/+/, '') }));
 }
 
 main().catch((err) => {

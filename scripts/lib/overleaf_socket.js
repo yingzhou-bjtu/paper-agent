@@ -101,34 +101,7 @@ async function connectSocket(api, identity, query) {
       reject(err);
     });
   });
-  socket._api = api;
-  socket._identity = identity;
   return socket;
-}
-
-async function joinProject(socket, projectId) {
-  try {
-    const [project] = await emit(socket, 'joinProject', { project_id: projectId });
-    return { socket, project };
-  } catch (_firstError) {
-    const api = socket._api;
-    const identity = socket._identity;
-    socket.disconnect();
-    const retrySocket = await connectSocket(
-      api,
-      identity,
-      `?projectId=${projectId}&t=${Date.now()}`
-    );
-    const project = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('joinProjectResponse timeout')), 25000);
-      retrySocket.on('joinProjectResponse', (response) => {
-        clearTimeout(timer);
-        resolve(response.project);
-      });
-      retrySocket.emit('joinProject', { project_id: projectId });
-    });
-    return { socket: retrySocket, project };
-  }
 }
 
 async function connectAndJoinProject(api, identity, projectId) {
@@ -167,7 +140,6 @@ module.exports = {
   connectSocket,
   emit,
   findDocByPath,
-  joinProject,
   loadWorkshopApi,
   normalizeDocPath,
   readDoc,
