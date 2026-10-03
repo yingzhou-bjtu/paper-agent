@@ -118,6 +118,8 @@ material directories, and the local `.env` mapping without printing credentials.
 - **Cookie login helper** — configures Workshop for `www.overleaf.com` (SSO) without manual UI copy-paste every time.
 - **Sync verification** — `./bin/test-method-a` checks replica layout, Workshop registration, and `main.tex` parity with the cloud.
 - **Safe multi-user sync** — `./bin/collab-sync` does a real three-way merge before pushing, so edits from Overleaf web collaborators are not silently overwritten by local agents.
+- **Project creation helpers** — create an INFOCOM starter project or upload any local LaTeX tree as a new Overleaf project.
+- **Multi-paper health checks** — `./bin/paper-project doctor` validates the active-paper symlink, archive integrity, registry state, and `.env` mapping.
 - **Bundled OSS skills** — curated manifest; `./bin/install-skills minimal` symlinks into `.cursor/skills/`.
 - **Stdlib-first** — core scripts use Python 3.10+ only; no Qt, no extra deps for the guide itself.
 
@@ -187,6 +189,7 @@ paper-agent does **not** implement its own Overleaf sync protocol—it prepares 
 ./bin/open-overleaf-replica      # open replica in Cursor (usual)
 ./bin/test-method-a              # when sync feels wrong
 ./bin/setup-overleaf-project     # re-pull from cloud (overwrites local—backup first)
+./bin/paper-project doctor       # check multi-paper workspace state
 ```
 
 For day-to-day push verification, keep the check lightweight:
@@ -404,10 +407,13 @@ Use **relative paths** inside the repo and `~/...` for the replica. Avoid machin
 | `./bin/check-cursor-setup` | Workshop install + login |
 | `./bin/configure-overleaf-cookie` | Apply cookie to Cursor state |
 | `./bin/setup-overleaf-project` | Deploy / refresh local replica |
+| `./bin/create-infocom2027-project` | Create an IEEE INFOCOM starter project on Overleaf |
+| `./bin/create-overleaf-project --name <name> --source <dir>` | Upload a local LaTeX tree as a new Overleaf project |
 | `./bin/open-overleaf-replica` | `cursor -r` on replica |
 | `./bin/open-overleaf-project` | Open remote Overleaf project |
 | `./bin/test-method-a` | Verify replica + sync (`--live` for push test) |
 | `./bin/collab-sync <pull|push|status> <file>` | Safe three-way merge with Overleaf web collaborators |
+| `./bin/paper-project <list|switch|configure|doctor>` | Manage local multi-paper profiles |
 | `./bin/install-skills [preset]` | Link skills (`minimal`, `research`, …) |
 | `./bin/audit-release` | Privacy / compliance scan (maintainers) |
 | `./bin/vendor-skills --all` | Re-download vendored skills (maintainers) |
