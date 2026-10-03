@@ -19,3 +19,5 @@ paper-agent-guide.exe
 skill/**/.git/
 
 papers/
+.paper-agent/
+当前论文/

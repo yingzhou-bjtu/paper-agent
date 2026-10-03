@@ -11,8 +11,11 @@ paper-agent-workspace/          # parent folder (any name)
 │   ├── bin/
 │   ├── scripts/
 │   ├── skill/
-│   ├── 参考文献/
-│   ├── 实验代码/
+│   ├── .paper-agent/           # local multi-paper state, gitignored
+│   │   ├── registry.json
+│   │   ├── projects/<slug>/    # expanded active paper
+│   │   └── archives/<slug>.tar.gz
+│   ├── 当前论文 -> .paper-agent/projects/<slug>/
 │   └── .env                    # your config (gitignored)
 └── papers/                     # Method A replicas (gitignored at workspace level)
     └── <overleaf-project-name>/
@@ -24,8 +27,13 @@ paper-agent-workspace/          # parent folder (any name)
 
 ## Why
 
-- **One place** for the tooling repo, LaTeX replicas, references, and experiment code.
-- **Relative paths** in `.env`: `../papers/<name>/method-a`, `参考文献`, `实验代码`.
+- **One place** for the tooling repo and all local paper profiles.
+- Each paper owns `参考图片/`, `参考画图代码/`, `参考模版/`, `参考同类论文/`,
+  `参考文献/`, `实验代码/`, `论文源文件/`, and `结果与图表/`.
+- Only the active paper is expanded under `当前论文`; inactive papers are compressed
+  under `.paper-agent/archives/`.
+- **Relative paths** in `.env`: `../papers/<name>/method-a`,
+  `当前论文/参考文献`, `当前论文/实验代码`.
 - **No** machine-specific paths like `/home/you/...`.
 
 ## Setup from scratch
@@ -37,6 +45,15 @@ git clone git@github.com:yingzhou-bjtu/paper-agent.git paper-agent
 mkdir -p papers
 cd paper-agent
 ./paper-agent-guide
+```
+
+For multiple papers, initialize profiles and switch the active one:
+
+```bash
+./bin/paper-project add flowfish --name "FlowFish" --project-id <24-hex-id> --activate
+./bin/paper-project add faisys --name "FAISys 2026" --project-id <24-hex-id>
+./bin/paper-project switch faisys
+./bin/paper-project list
 ```
 
 ## Migrating an existing install

@@ -63,6 +63,37 @@ they are not part of the core tooling and can be emptied freely. Conference
 LaTeX templates already shipped inside `skill/ccf-paper/CCFA-Skills/ccf-latex-templates`
 stay there so skill installation keeps working.
 
+### Multi-paper workspace
+
+The local workspace supports many papers while expanding only one at a time.
+Each paper owns its references, figures, plotting code, templates, related-paper
+notes, bibliography, source files, experiments, and result figures:
+
+```text
+.paper-agent/
+├── registry.json                 # local index, ignored by Git
+├── projects/<slug>/              # expanded active paper
+└── archives/<slug>.tar.gz        # compressed inactive papers
+当前论文 -> .paper-agent/projects/<active-slug>/
+```
+
+Create and switch papers with:
+
+```bash
+./bin/paper-project add flowfish --name "FlowFish" --project-id <24-hex-id> --activate
+./bin/paper-project add faisys --name "FAISys 2026" --project-id <24-hex-id>
+./bin/paper-project add old-paper --name "Old Paper" --source ~/papers/old-paper
+./bin/paper-project list
+./bin/paper-project switch faisys
+./bin/paper-project status
+```
+
+`switch` compresses the previous active paper, restores the selected paper,
+updates the local `.env` to its Overleaf project, and refreshes the `当前论文`
+entry point. The registry, expanded materials, archives, and `.env` remain
+local and are ignored by GitHub. Only generic tooling and documentation belong
+in this repository.
+
 ---
 
 ## Features
