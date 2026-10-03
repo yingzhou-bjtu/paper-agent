@@ -53,6 +53,7 @@ For multiple papers, initialize profiles and switch the active one:
 ./bin/paper-project add flowfish --name "FlowFish" --project-id <24-hex-id> --activate
 ./bin/paper-project add faisys --name "FAISys 2026" --project-id <24-hex-id>
 ./bin/paper-project switch faisys
+./bin/paper-project rename faisys faisys2026-hyacinth --label "FAISys2026-Hyacinth"
 ./bin/paper-project list
 ./bin/paper-project doctor
 ```
@@ -71,6 +72,9 @@ registry by hand:
   --project-id <24-hex-id> \
   --method-a-dir "../papers/FAISys 2026/method-a"
 ```
+
+`rename` changes only the local slug and display label. It does not rename the
+cloud Overleaf project or alter its project ID.
 
 ## Migrating an existing install
 

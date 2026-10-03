@@ -85,6 +85,7 @@ Create and switch papers with:
 ./bin/paper-project add old-paper --name "Old Paper" --source ~/papers/old-paper
 ./bin/paper-project list
 ./bin/paper-project switch faisys
+./bin/paper-project rename faisys faisys2026-hyacinth --label "FAISys2026-Hyacinth"
 ./bin/paper-project status
 ./bin/paper-project doctor
 ```
@@ -413,7 +414,7 @@ Use **relative paths** inside the repo and `~/...` for the replica. Avoid machin
 | `./bin/open-overleaf-project` | Open remote Overleaf project |
 | `./bin/test-method-a` | Verify replica + sync (`--live` for push test) |
 | `./bin/collab-sync <pull|push|status> <file>` | Safe three-way merge with Overleaf web collaborators |
-| `./bin/paper-project <list|switch|configure|doctor>` | Manage local multi-paper profiles |
+| `./bin/paper-project <list|switch|rename|configure|doctor>` | Manage local multi-paper profiles |
 | `./bin/install-skills [preset]` | Link skills (`minimal`, `research`, …) |
 | `./bin/audit-release` | Privacy / compliance scan (maintainers) |
 | `./bin/vendor-skills --all` | Re-download vendored skills (maintainers) |

@@ -16,6 +16,7 @@ from scripts.paper_projects import (
     configure_project,
     doctor_project_workspace,
     list_projects,
+    rename_project,
     switch_project,
 )
 
@@ -42,6 +43,12 @@ def main() -> int:
             project_id="abcdefabcdefabcdefabcdef",
             method_a_dir="../papers/Alpha Revised/method-a",
         )
+        assert not doctor_project_workspace(root)
+        rename_project(root, "beta", "beta-renamed", "Beta Renamed")
+        assert [row[0] for row in list_projects(root)] == ["alpha", "beta-renamed"]
+        assert not doctor_project_workspace(root)
+        rename_project(root, "alpha", "alpha-renamed", "Alpha Renamed")
+        assert (root / "当前论文").resolve().name == "alpha-renamed"
         assert not doctor_project_workspace(root)
 
     print("paper-project tests: PASS")

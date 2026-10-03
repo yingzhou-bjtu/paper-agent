@@ -224,6 +224,61 @@ def restore_project(root: Path, slug: str) -> None:
     archive.unlink()
 
 
+def rename_project(root: Path, old_slug: str, new_slug: str, label: str | None) -> None:
+    registry = load_registry(root)
+    old_slug = validate_slug(old_slug)
+    new_slug = validate_slug(new_slug)
+    if old_slug == new_slug:
+        raise PaperProjectError("新旧论文 slug 不能相同。")
+    if old_slug not in registry["projects"]:
+        raise PaperProjectError(f"未找到论文项目: {old_slug}")
+    if (
+        new_slug in registry["projects"]
+        or project_dir(root, new_slug).exists()
+        or archive_path(root, new_slug).exists()
+    ):
+        raise PaperProjectError(f"目标论文 slug 已存在: {new_slug}")
+
+    old_dir = project_dir(root, old_slug)
+    old_archive = archive_path(root, old_slug)
+    new_dir = project_dir(root, new_slug)
+    new_archive = archive_path(root, new_slug)
+    entry = dict(registry["projects"][old_slug])
+    entry["slug"] = new_slug
+    if label is not None:
+        if not label.strip():
+            raise PaperProjectError("论文显示名称不能为空。")
+        entry["label"] = label.strip()
+
+    if old_dir.is_dir() and old_archive.is_file():
+        raise PaperProjectError(f"{old_slug}: 同时存在展开目录和归档，先运行 doctor 修复。")
+    if not old_dir.is_dir() and not old_archive.is_file():
+        raise PaperProjectError(f"{old_slug}: 展开目录和归档都不存在。")
+
+    if old_dir.is_dir():
+        old_dir.rename(new_dir)
+        write_project_readme(new_dir, entry["label"], new_slug)
+    else:
+        temporary_dir = Path(tempfile.mkdtemp(prefix=f".rename-{old_slug}-", dir=projects_root(root)))
+        temporary_project = temporary_dir / old_slug
+        try:
+            safe_extract(old_archive, temporary_dir, old_slug)
+            temporary_project.rename(new_dir)
+            write_project_readme(new_dir, entry["label"], new_slug)
+            old_archive.unlink()
+            archive_project(root, new_slug)
+        finally:
+            shutil.rmtree(temporary_dir, ignore_errors=True)
+
+    registry["projects"].pop(old_slug)
+    registry["projects"][new_slug] = entry
+    if registry.get("active") == old_slug:
+        registry["active"] = new_slug
+        update_active_link(root, new_slug)
+        sync_active_env(root, entry)
+    save_registry(root, registry)
+
+
 def sync_active_env(root: Path, entry: dict) -> None:
     values = parse_env_file(root / ".env")
     project_name = entry["overleaf_project_name"]
@@ -445,6 +500,11 @@ def main(argv: list[str] | None = None) -> int:
     switch_parser = subparsers.add_parser("switch", help="切换活动论文")
     switch_parser.add_argument("slug")
 
+    rename_parser = subparsers.add_parser("rename", help="重命名论文项目")
+    rename_parser.add_argument("old_slug")
+    rename_parser.add_argument("new_slug")
+    rename_parser.add_argument("--label", help="新的本地显示名称，不改变云端 Overleaf 项目名称")
+
     configure_parser = subparsers.add_parser(
         "configure",
         help="更新论文的 Overleaf 名称、项目 ID 或本地副本路径",
@@ -478,6 +538,9 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "switch":
             switch_project(root, args.slug)
             print(f"已切换活动论文: {args.slug}")
+        elif args.command == "rename":
+            rename_project(root, args.old_slug, args.new_slug, args.label)
+            print(f"已重命名论文项目: {args.old_slug} -> {args.new_slug}")
         elif args.command == "configure":
             configure_project(
                 root,
