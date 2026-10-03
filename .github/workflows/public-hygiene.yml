@@ -22,9 +22,17 @@ jobs:
         run: ./bin/audit-release
       - name: Test paper workspace manager
         run: python3 scripts/test_paper_projects.py
+      - name: Test file-level verification plumbing
+        run: python3 scripts/test_fast_verification.py
       - name: Compile core scripts
         run: |
           python3 -m py_compile \
             scripts/audit_release.py \
             scripts/lib/env_file.py \
-            scripts/paper_projects.py
+            scripts/lib/overleaf_remote.py \
+            scripts/paper_projects.py \
+            scripts/sync_verified_doc.py
+          node --check scripts/lib/overleaf_socket.js
+          node --check scripts/push_overleaf_doc.js
+          node --check scripts/read_overleaf_doc.js
+          node --check scripts/upload_overleaf_binary_files.js
