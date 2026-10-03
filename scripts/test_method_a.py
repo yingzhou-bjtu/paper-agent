@@ -126,7 +126,7 @@ def run_static_checks(replica_dir: Path | None = None) -> list[CheckResult]:
                 match,
                 f"local={_sha256_text(local_text)[:12]} remote={_sha256_text(remote_text)[:12]}",
             )
-        except ValueError as exc:
+        except (RuntimeError, ValueError) as exc:
             add("本地与云端 main.tex 一致", False, str(exc))
 
     return checks
