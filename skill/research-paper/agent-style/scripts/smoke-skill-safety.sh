@@ -28,8 +28,6 @@ export PYTHONPATH="${PY_DIR_NATIVE}${PY_SEP}${PYTHONPATH:-}"
 # Windows; else python3 / python on PATH.
 if [[ -n "${AGENT_STYLE_PYTHON:-}" ]]; then
   PY_BIN="$AGENT_STYLE_PYTHON"
-elif [[ -x "/c/Users/yuezh/miniforge3/envs/py312/python.exe" ]]; then
-  PY_BIN="/c/Users/yuezh/miniforge3/envs/py312/python.exe"
 elif command -v python3 >/dev/null 2>&1; then
   PY_BIN="$(command -v python3)"
 elif command -v python >/dev/null 2>&1; then

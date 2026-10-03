@@ -19,6 +19,7 @@ MANIFEST = ROOT / "skill" / "manifest.json"
 # Project-owned paths only; vendored skill/ trees are upstream OSS copies.
 SCAN_PREFIXES = ("bin/", "scripts/", "templates/", "skill/manifest.json", "skill/README.md")
 SCAN_ROOT_FILES = (
+    ".audit-denylist.example",
     ".env.example",
     ".gitignore",
     "README.md",
@@ -31,6 +32,10 @@ SCAN_ROOT_FILES = (
 )
 
 PRIVATE_PATH_RE = re.compile(r"/home/[A-Za-z0-9._-]+")
+WINDOWS_USER_PATH_RE = re.compile(
+    r"(?i)(?:[A-Za-z]:|/c)/Users/(?!your(?:user)?|user(?:name)?|<)[A-Za-z0-9._-]+"
+)
+PRIVATE_KEY_RE = re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----")
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@(?:qq|163|126|gmail)\.com", re.IGNORECASE)
 OVERLEAF_ID_RE = re.compile(r"\b[0-9a-f]{24}\b")
 NON_OSS_MANIFEST_RE = re.compile(r'"open_source"\s*:\s*false', re.IGNORECASE)
@@ -108,9 +113,16 @@ def _scan_text_file(path: Path, rel: str, report: AuditReport) -> None:
                 )
         if PRIVATE_PATH_RE.search(line):
             report.findings.append(Finding(rel, line_no, "疑似本机绝对路径"))
+        if WINDOWS_USER_PATH_RE.search(line):
+            report.findings.append(Finding(rel, line_no, "疑似 Windows 本机用户路径"))
         if EMAIL_RE.search(line):
             report.findings.append(Finding(rel, line_no, "疑似个人邮箱"))
-        if OVERLEAF_ID_RE.search(line) and "OVERLEAF_PROJECT_ID" not in line:
+        is_test_fixture = rel.startswith("scripts/test_")
+        if (
+            OVERLEAF_ID_RE.search(line)
+            and "OVERLEAF_PROJECT_ID" not in line
+            and not is_test_fixture
+        ):
             report.findings.append(Finding(rel, line_no, "疑似 Overleaf 项目 ID"))
 
 
@@ -121,6 +133,20 @@ def scan_tracked_files(report: AuditReport) -> None:
             continue
         if path.is_file():
             _scan_text_file(path, rel, report)
+
+
+def scan_global_sensitive_markers(report: AuditReport) -> None:
+    for path in _git_tracked_files():
+        rel = path.relative_to(ROOT).as_posix()
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            if WINDOWS_USER_PATH_RE.search(line):
+                report.findings.append(Finding(rel, line_no, "疑似 Windows 本机用户路径"))
+            if PRIVATE_KEY_RE.search(line):
+                report.findings.append(Finding(rel, line_no, "疑似私钥内容"))
 
 
 def scan_manifest(report: AuditReport) -> None:
@@ -179,6 +205,7 @@ def run_audit() -> AuditReport:
     report = AuditReport()
     scan_manifest(report)
     scan_tracked_files(report)
+    scan_global_sensitive_markers(report)
     scan_local_skill_links(report)
     return report
 

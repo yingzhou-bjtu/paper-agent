@@ -1,0 +1,30 @@
+name: Public hygiene
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Audit public tree
+        run: ./bin/audit-release
+      - name: Test paper workspace manager
+        run: python3 scripts/test_paper_projects.py
+      - name: Compile core scripts
+        run: |
+          python3 -m py_compile \
+            scripts/audit_release.py \
+            scripts/lib/env_file.py \
+            scripts/paper_projects.py

@@ -6,7 +6,7 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = r"C:\Users\yuezh\PycharmProjects\agent-style"
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 PYPATH = os.path.join(ROOT, "packages", "pypi")
 env = os.environ.copy()
 env["PYTHONPATH"] = PYPATH + os.pathsep + env.get("PYTHONPATH", "")

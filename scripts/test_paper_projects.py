@@ -11,7 +11,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.paper_projects import add_project, list_projects, switch_project
+from scripts.paper_projects import (
+    add_project,
+    configure_project,
+    doctor_project_workspace,
+    list_projects,
+    switch_project,
+)
 
 
 def main() -> int:
@@ -29,6 +35,14 @@ def main() -> int:
         assert note.read_text(encoding="utf-8") == "alpha-note\n"
         assert (root / ".paper-agent" / "archives" / "beta.tar.gz").is_file()
         assert [row[0] for row in list_projects(root)] == ["alpha", "beta"]
+        configure_project(
+            root,
+            "alpha",
+            name="Alpha Revised",
+            project_id="abcdefabcdefabcdefabcdef",
+            method_a_dir="../papers/Alpha Revised/method-a",
+        )
+        assert not doctor_project_workspace(root)
 
     print("paper-project tests: PASS")
     return 0

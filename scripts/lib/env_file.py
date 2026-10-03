@@ -217,9 +217,13 @@ def relativize_env_values(values: dict[str, str], repo_root: Path | None = None)
     return out
 
 
-def write_env_file(values: dict[str, str], path: Path | None = None) -> Path:
+def write_env_file(
+    values: dict[str, str],
+    path: Path | None = None,
+    repo_root: Path | None = None,
+) -> Path:
     path = path or ENV_PATH
-    values = relativize_env_values(values, ROOT)
+    values = relativize_env_values(values, repo_root or ROOT)
     lines: list[str] = [
         "# paper-agent 环境配置",
         "# 由 setup-env 生成；敏感项请勿提交到 Git",

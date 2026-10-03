@@ -235,7 +235,7 @@ def sync_active_env(root: Path, entry: dict) -> None:
     )
     values["REFERENCES_DIR"] = "当前论文/参考文献"
     values["EXPERIMENT_CODE_DIR"] = "当前论文/实验代码"
-    write_env_file(values, root / ".env")
+    write_env_file(values, root / ".env", repo_root=root)
 
 
 def switch_project(root: Path, slug: str) -> None:
@@ -319,6 +319,101 @@ def list_projects(root: Path) -> list[tuple[str, dict, str]]:
     return rows
 
 
+def configure_project(
+    root: Path,
+    slug: str,
+    *,
+    name: str | None,
+    project_id: str | None,
+    method_a_dir: str | None,
+) -> None:
+    registry = load_registry(root)
+    slug = validate_slug(slug)
+    entry = project_entry(registry, slug)
+    if name is None and project_id is None and method_a_dir is None:
+        raise PaperProjectError("至少提供 --name、--project-id 或 --method-a-dir 之一。")
+    if name is not None:
+        if not name.strip():
+            raise PaperProjectError("Overleaf 项目名称不能为空。")
+        entry["label"] = name.strip()
+        entry["overleaf_project_name"] = name.strip()
+    if project_id is not None:
+        if project_id and not re.fullmatch(r"[0-9a-fA-F]{24}", project_id):
+            raise PaperProjectError("Overleaf 项目 ID 必须是 24 位十六进制字符串。")
+        entry["overleaf_project_id"] = project_id.strip()
+    if method_a_dir is not None:
+        entry["overleaf_method_a_dir"] = method_a_dir.strip()
+    save_registry(root, registry)
+    if registry.get("active") == slug:
+        sync_active_env(root, entry)
+
+
+def doctor_project_workspace(root: Path) -> list[str]:
+    registry = load_registry(root)
+    problems: list[str] = []
+    active = registry.get("active")
+    if active is not None and active not in registry["projects"]:
+        problems.append(f"活动论文不在注册表中: {active}")
+    if active is not None:
+        link = active_link(root)
+        expected = project_dir(root, active)
+        if not link.is_symlink() or link.resolve() != expected.resolve():
+            problems.append("当前论文符号链接没有指向活动项目")
+
+    for slug, entry in sorted(registry["projects"].items()):
+        expanded = project_dir(root, slug).is_dir()
+        archived = archive_path(root, slug).is_file()
+        if expanded and archived:
+            problems.append(f"{slug}: 同时存在展开目录和归档")
+        elif not expanded and not archived:
+            problems.append(f"{slug}: 展开目录和归档都不存在")
+        if entry.get("status") == "active" and slug != active:
+            problems.append(f"{slug}: 状态标记为 active 但不是当前项目")
+        if entry.get("status") != "active" and slug == active:
+            problems.append(f"{slug}: 当前项目状态不是 active")
+        project_id = entry.get("overleaf_project_id", "")
+        if project_id and not re.fullmatch(r"[0-9a-fA-F]{24}", project_id):
+            problems.append(f"{slug}: Overleaf 项目 ID 格式错误")
+        if archived:
+            try:
+                with tarfile.open(archive_path(root, slug), "r:gz") as handle:
+                    safe_extract_members = handle.getmembers()
+                    prefix = f"{slug}/"
+                    if any(
+                        member.name != slug and not member.name.startswith(prefix)
+                        for member in safe_extract_members
+                    ):
+                        problems.append(f"{slug}: 归档包含越界路径")
+            except (OSError, tarfile.TarError) as exc:
+                problems.append(f"{slug}: 归档不可读取 ({exc})")
+        if expanded:
+            missing = [
+                name for name in MATERIAL_DIRS if not (project_dir(root, slug) / name).is_dir()
+            ]
+            if missing:
+                problems.append(f"{slug}: 缺少材料目录 {', '.join(missing)}")
+
+    if active is not None:
+        values = parse_env_file(root / ".env")
+        entry = registry["projects"][active]
+        if values.get("OVERLEAF_PROJECT_NAME", "") != entry["overleaf_project_name"]:
+            problems.append(".env 的 Overleaf 项目名称未跟随活动项目")
+        if values.get("OVERLEAF_PROJECT_ID", "") != entry.get("overleaf_project_id", ""):
+            problems.append(".env 的 Overleaf 项目 ID 未跟随活动项目")
+
+        def points_to_material_dir(value: str, material_dir: str) -> bool:
+            configured = Path(value).expanduser()
+            if not configured.is_absolute():
+                configured = root / configured
+            return configured.resolve() == (project_dir(root, active) / material_dir).resolve()
+
+        if not points_to_material_dir(values.get("REFERENCES_DIR", ""), "参考文献"):
+            problems.append(".env 的参考文献目录未指向当前论文")
+        if not points_to_material_dir(values.get("EXPERIMENT_CODE_DIR", ""), "实验代码"):
+            problems.append(".env 的实验代码目录未指向当前论文")
+    return problems
+
+
 def print_status(root: Path) -> None:
     registry = load_registry(root)
     print(f"根目录: {root}")
@@ -350,6 +445,17 @@ def main(argv: list[str] | None = None) -> int:
     switch_parser = subparsers.add_parser("switch", help="切换活动论文")
     switch_parser.add_argument("slug")
 
+    configure_parser = subparsers.add_parser(
+        "configure",
+        help="更新论文的 Overleaf 名称、项目 ID 或本地副本路径",
+    )
+    configure_parser.add_argument("slug")
+    configure_parser.add_argument("--name", help="Overleaf 项目名称")
+    configure_parser.add_argument("--project-id", help="Overleaf 项目 ID，留空可清除")
+    configure_parser.add_argument("--method-a-dir", help="Method A 本地副本目录")
+
+    subparsers.add_parser("doctor", help="检查注册表、归档、活动入口和本地配置")
+
     args = parser.parse_args(argv)
     root = repo_root(args.root)
     try:
@@ -372,6 +478,22 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "switch":
             switch_project(root, args.slug)
             print(f"已切换活动论文: {args.slug}")
+        elif args.command == "configure":
+            configure_project(
+                root,
+                args.slug,
+                name=args.name,
+                project_id=args.project_id,
+                method_a_dir=args.method_a_dir,
+            )
+            print(f"已更新论文配置: {args.slug}")
+        elif args.command == "doctor":
+            problems = doctor_project_workspace(root)
+            if problems:
+                for problem in problems:
+                    print(f"FAIL: {problem}", file=os.sys.stderr)
+                return 1
+            print("paper-project doctor: PASS")
         return 0
     except PaperProjectError as exc:
         print(f"错误: {exc}", file=os.sys.stderr)

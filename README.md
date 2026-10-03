@@ -86,6 +86,7 @@ Create and switch papers with:
 ./bin/paper-project list
 ./bin/paper-project switch faisys
 ./bin/paper-project status
+./bin/paper-project doctor
 ```
 
 `switch` compresses the previous active paper, restores the selected paper,
@@ -95,6 +96,18 @@ archives because they are reproducible runtime state, not paper materials.
 The registry, expanded materials, archives, and `.env` remain local and are
 ignored by GitHub. Only generic tooling and documentation belong in this
 repository.
+
+Bind or change an Overleaf project after creating a local profile:
+
+```bash
+./bin/paper-project configure faisys \
+  --name "FAISys 2026" \
+  --project-id <24-hex-id> \
+  --method-a-dir "../papers/FAISys 2026/method-a"
+```
+
+`doctor` checks the active link, registry state, archive integrity, required
+material directories, and the local `.env` mapping without printing credentials.
 
 ---
 

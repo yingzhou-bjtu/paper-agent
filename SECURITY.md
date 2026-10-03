@@ -8,7 +8,7 @@
 
 ## Reporting a vulnerability
 
-This repository is currently **private**. If you have access and find a security issue:
+This repository is public. If you find a security issue:
 
 1. **Do not** open a public issue with exploit details.
 2. Contact the repository owner privately (GitHub security advisory or direct message).
@@ -32,7 +32,9 @@ This repository is currently **private**. If you have access and find a security
 
 ## Git history
 
-Early commits may contain example paths since removed from the tree. Before making the repository **public**, consider rewriting history:
+Public releases must audit reachable history, not only the current tree. If a
+credential or personal path is found in an existing public commit, rotate the
+credential first and coordinate a history rewrite:
 
 ```bash
 # Example: install git-filter-repo, then replace sensitive strings

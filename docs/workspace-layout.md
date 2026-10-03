@@ -54,12 +54,23 @@ For multiple papers, initialize profiles and switch the active one:
 ./bin/paper-project add faisys --name "FAISys 2026" --project-id <24-hex-id>
 ./bin/paper-project switch faisys
 ./bin/paper-project list
+./bin/paper-project doctor
 ```
 
 Inactive projects are stored as local `.tar.gz` archives. Reproducible
 runtime directories such as `.venv`, `.pytest_cache`, and `__pycache__` are
 excluded from those archives; source files, results, references, and Git
 metadata remain project-owned.
+
+To bind an existing profile to its Overleaf project without editing the local
+registry by hand:
+
+```bash
+./bin/paper-project configure faisys \
+  --name "FAISys 2026" \
+  --project-id <24-hex-id> \
+  --method-a-dir "../papers/FAISys 2026/method-a"
+```
 
 ## Migrating an existing install
 
