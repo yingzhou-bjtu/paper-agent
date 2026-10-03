@@ -56,6 +56,11 @@ For multiple papers, initialize profiles and switch the active one:
 ./bin/paper-project list
 ```
 
+Inactive projects are stored as local `.tar.gz` archives. Reproducible
+runtime directories such as `.venv`, `.pytest_cache`, and `__pycache__` are
+excluded from those archives; source files, results, references, and Git
+metadata remain project-owned.
+
 ## Migrating an existing install
 
 If you previously used `~/papers/<project>/method-a`:

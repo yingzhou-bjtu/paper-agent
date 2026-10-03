@@ -36,6 +36,7 @@ MATERIAL_DIRS = (
     "论文源文件",
     "结果与图表",
 )
+ARCHIVE_EXCLUDED_PARTS = {".venv", "__pycache__", ".pytest_cache"}
 
 
 class PaperProjectError(RuntimeError):
@@ -157,7 +158,7 @@ def import_project_source(source: Path, destination: Path) -> None:
         raise PaperProjectError(f"论文源目录不存在: {source}")
     if source == destination.resolve() or destination.resolve().is_relative_to(source):
         raise PaperProjectError("论文源目录不能位于目标项目目录内。")
-    ignored_names = {".git", ".paper-agent", "__pycache__"}
+    ignored_names = {".git", ".paper-agent", "__pycache__", ".venv", ".pytest_cache"}
     for item in source.iterdir():
         if item.name in ignored_names or item.name == ".env" or item.name.startswith(".env."):
             continue
@@ -199,9 +200,15 @@ def archive_project(root: Path, slug: str) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary_dir = Path(tempfile.mkdtemp(prefix=f".{slug}-", dir=target.parent))
     temporary = temporary_dir / target.name
+
+    def archive_filter(member: tarfile.TarInfo) -> tarfile.TarInfo | None:
+        if any(part in ARCHIVE_EXCLUDED_PARTS for part in Path(member.name).parts):
+            return None
+        return member
+
     try:
         with tarfile.open(temporary, "w:gz") as handle:
-            handle.add(source, arcname=slug, recursive=True)
+            handle.add(source, arcname=slug, recursive=True, filter=archive_filter)
         temporary.replace(target)
     finally:
         shutil.rmtree(temporary_dir, ignore_errors=True)

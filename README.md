@@ -90,9 +90,11 @@ Create and switch papers with:
 
 `switch` compresses the previous active paper, restores the selected paper,
 updates the local `.env` to its Overleaf project, and refreshes the `当前论文`
-entry point. The registry, expanded materials, archives, and `.env` remain
-local and are ignored by GitHub. Only generic tooling and documentation belong
-in this repository.
+entry point. Local virtual environments and Python caches are excluded from
+archives because they are reproducible runtime state, not paper materials.
+The registry, expanded materials, archives, and `.env` remain local and are
+ignored by GitHub. Only generic tooling and documentation belong in this
+repository.
 
 ---
 
