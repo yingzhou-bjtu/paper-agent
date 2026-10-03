@@ -1,26 +1,31 @@
 """Adapter that turns Overleaf into a SyncEngine RemoteSource.
 
-Reading uses the same ``/project/<id>/download/zip`` endpoint the existing
-scripts use. Writing reuses ``push_overleaf_doc.js`` so the patch/OT format
-matches Overleaf Workshop exactly.
+Document reads use the Workshop Socket.IO ``joinDoc`` path, so a sync only
+transfers the requested document instead of downloading the whole project.
+The ZIP endpoint remains available in ``overleaf_api`` for explicit audits.
 """
 
 from __future__ import annotations
 
-import io
+import base64
+import hashlib
 import json
 import os
 import subprocess
 import tempfile
-import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
-from scripts.lib.overleaf_api import (
-    OverleafSession,
-    download_project_zip,
-)
+from scripts.lib.overleaf_api import OverleafSession
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+@dataclass(frozen=True)
+class RemoteDocument:
+    content: bytes
+    sha256: str
+    version: int | str | None
 
 
 class OverleafRemote:
@@ -28,44 +33,81 @@ class OverleafRemote:
         self.session = session
         self.project_id = project_id
 
-    def download(self, doc_path: str) -> bytes:
-        """Read one file from a fresh cloud ZIP."""
-        zip_bytes = download_project_zip(self.session, self.project_id)
-        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as archive:
-            names = [n for n in archive.namelist() if n.strip('/') == doc_path.strip('/')]
-            if not names:
-                raise FileNotFoundError(f"cloud file not found: {doc_path}")
-            return archive.read(names[0])
+    def _identity_file(self) -> tuple[str, object]:
+        identity = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        os.chmod(identity.name, 0o600)
+        json.dump(
+            {"identity": self.session.identity, "url": self.session.server_url},
+            identity,
+        )
+        identity.flush()
+        return identity.name, identity
 
-    def upload(self, doc_path: str, content: bytes) -> None:
-        """Push whole-file content using the Workshop-compatible node script."""
-        with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as identity:
-            json.dump(
-                {"identity": self.session.identity, "url": self.session.server_url},
-                identity,
-            )
-            identity.flush()
-            identity_name = identity.name
-        os.chmod(identity_name, 0o600)
-        with tempfile.NamedTemporaryFile(suffix=".tex", delete=False) as payload:
-            payload.write(content)
-            payload.flush()
-            payload_name = payload.name
+    def _run_node(self, script: str, *arguments: str) -> dict:
+        identity_name, identity = self._identity_file()
         try:
-            subprocess.run(
-                [
-                    "node",
-                    str(ROOT / "scripts" / "push_overleaf_doc.js"),
-                    identity_name,
-                    self.project_id,
-                    "/" + doc_path.strip('/'),
-                    "@" + payload_name,
-                ],
+            result = subprocess.run(
+                ["node", str(ROOT / "scripts" / script), identity_name, *arguments],
                 check=True,
                 capture_output=True,
                 text=True,
                 timeout=90,
             )
+        except subprocess.CalledProcessError as exc:
+            detail = (exc.stderr or exc.stdout or "no diagnostic").strip()
+            raise RuntimeError(f"{script} failed: {detail[-500:]}") from exc
         finally:
+            identity.close()
             os.unlink(identity_name)
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        if not lines:
+            raise RuntimeError(f"{script} did not return a result")
+        try:
+            return json.loads(lines[-1])
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"{script} returned invalid JSON") from exc
+
+    def read(self, doc_path: str) -> RemoteDocument:
+        payload = self._run_node(
+            "read_overleaf_doc.js",
+            self.project_id,
+            "/" + doc_path.strip("/"),
+        )
+        try:
+            content = base64.b64decode(payload["content_base64"], validate=True)
+        except (KeyError, ValueError) as exc:
+            raise RuntimeError("Overleaf document probe returned invalid content") from exc
+        digest = hashlib.sha256(content).hexdigest()
+        if digest != payload.get("sha256"):
+            raise RuntimeError("Overleaf document probe failed its SHA-256 self-check")
+        return RemoteDocument(
+            content=content,
+            sha256=digest,
+            version=payload.get("version"),
+        )
+
+    def download(self, doc_path: str) -> bytes:
+        """Read one document through the fast file-level probe."""
+        return self.read(doc_path).content
+
+    def upload(self, doc_path: str, content: bytes) -> None:
+        """Push whole-file content using the Workshop-compatible node script."""
+        with tempfile.NamedTemporaryFile(suffix=".tex", delete=False) as payload:
+            payload.write(content)
+            payload.flush()
+            payload_name = payload.name
+        try:
+            self._run_node(
+                "push_overleaf_doc.js",
+                self.project_id,
+                "/" + doc_path.strip("/"),
+                "@" + payload_name,
+            )
+        finally:
             os.unlink(payload_name)
+        verified = self.read(doc_path)
+        if verified.content != content:
+            raise RuntimeError(
+                f"Overleaf file-level verification failed for {doc_path}: "
+                f"local={len(content)} bytes remote={len(verified.content)} bytes"
+            )

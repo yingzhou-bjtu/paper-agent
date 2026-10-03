@@ -117,7 +117,7 @@ material directories, and the local `.env` mapping without printing credentials.
 - **One-shot onboarding** — `./paper-agent-guide` runs env setup, health checks, replica deploy, skills, and sync tests.
 - **Method A (local replica)** — Overleaf project on disk + Workshop Local Replica + optional local Git.
 - **Cookie login helper** — configures Workshop for `www.overleaf.com` (SSO) without manual UI copy-paste every time.
-- **Sync verification** — `./bin/test-method-a` checks replica layout, Workshop registration, and `main.tex` parity with the cloud.
+- **Sync verification** — `./bin/test-method-a` checks replica layout, Workshop registration, and `main.tex` parity with the cloud through file-level `joinDoc` readback.
 - **Safe multi-user sync** — `./bin/collab-sync` does a real three-way merge before pushing, so edits from Overleaf web collaborators are not silently overwritten by local agents.
 - **Project creation helpers** — create an INFOCOM starter project or upload any local LaTeX tree as a new Overleaf project.
 - **Multi-paper health checks** — `./bin/paper-project doctor` validates the active-paper symlink, archive integrity, registry state, and `.env` mapping.
@@ -195,11 +195,15 @@ paper-agent does **not** implement its own Overleaf sync protocol—it prepares 
 
 For day-to-day push verification, keep the check lightweight:
 
-1. Confirm the push command returns `OK` for the edited files.
+1. Confirm the push command returns a JSON success result for the edited files.
 2. Open the Overleaf project and recompile it.
 3. Run `./bin/test-method-a` only when sync looks suspicious.
 
-Avoid downloading the whole Overleaf project zip for routine hash checks. Use full-project zip/hash verification only for deep debugging, because Overleaf's zip endpoint can be slow and may make a healthy push look stuck.
+Routine verification reads only the requested document through Overleaf Workshop's
+Socket.IO `joinDoc` path and compares byte count plus SHA-256. Binary uploads use
+the corresponding file endpoint. The project ZIP is used only for initial local
+replica setup or explicit deep debugging, because its endpoint is slow and can
+make a healthy push look stuck.
 
 ### Multi-user collaboration (you on paper-agent, others on Overleaf web)
 

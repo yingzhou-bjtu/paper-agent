@@ -162,8 +162,8 @@ function buildUpdate(doc, newContent) {
   };
 }
 
-async function connectSocket(api, identity, projectId) {
-  const socket = api._initSocketV0(identity);
+async function connectSocket(api, identity, query) {
+  const socket = api._initSocketV0(identity, query);
   await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('socket connect timeout')), 15000);
     socket.on('connect', () => {
@@ -183,36 +183,15 @@ async function connectSocket(api, identity, projectId) {
 }
 
 async function joinProject(socket, projectId) {
-  try {
-    const [project] = await emit(socket, 'joinProject', { project_id: projectId });
-    return project;
-  } catch (firstError) {
-    const query = `?projectId=${projectId}&t=${Date.now()}`;
-    socket.disconnect();
-    const api = socket._api;
-    const identity = socket._identity;
-    const retrySocket = api._initSocketV0(identity, query);
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('socket reconnect timeout')), 15000);
-      retrySocket.on('connect', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-      retrySocket.on('error', (err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
+  const project = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('joinProjectResponse timeout')), 25000);
+    socket.on('joinProjectResponse', (response) => {
+      clearTimeout(timer);
+      resolve(response.project);
     });
-    const project = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('joinProjectResponse timeout')), 15000);
-      retrySocket.on('joinProjectResponse', (res) => {
-        clearTimeout(timer);
-        resolve(res.project);
-      });
-      retrySocket.emit('joinProject', { project_id: projectId });
-    });
-    return { socket: retrySocket, project };
-  }
+    socket.emit('joinProject', { project_id: projectId });
+  });
+  return { socket, project };
 }
 
 async function main() {
@@ -238,17 +217,18 @@ async function main() {
   const { identity, url } = loadIdentity(identityFile);
   const api = new BaseAPI(url);
   api.setIdentity(identity);
-  let socket = await connectSocket(api, identity, projectId);
+  let socket = await connectSocket(
+    api,
+    identity,
+    `?projectId=${projectId}&t=${Date.now()}`
+  );
   socket._api = api;
   socket._identity = identity;
 
   let project;
   try {
-    project = await joinProject(socket, projectId);
-    if (project && project.socket) {
-      socket = project.socket;
-      project = project.project;
-    }
+    const joined = await joinProject(socket, projectId);
+    project = joined.project;
   } catch (err) {
     throw err;
   }
@@ -271,7 +251,7 @@ async function main() {
 
   await emit(socket, 'leaveDoc', doc._id);
   socket.disconnect();
-  console.log('OK');
+  console.log(JSON.stringify({ ok: true, document: docPath.replace(/^\/+/, '') }));
 }
 
 main().catch((err) => {

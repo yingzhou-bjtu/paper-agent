@@ -6,7 +6,6 @@ import hashlib
 import json
 import sqlite3
 import subprocess
-import tempfile
 import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,11 +13,9 @@ from pathlib import Path
 from scripts.lib.overleaf_api import (
     PROJECT_ID,
     PROJECT_NAME,
-    default_project,
-    download_project_zip,
-    extract_zip_to_directory,
     load_session,
 )
+from scripts.lib.overleaf_remote import OverleafRemote
 from scripts.lib.overleaf_workshop import GLOBAL_STATE_KEY, SERVERS_KEY
 from scripts.lib.paths import global_state_db
 from scripts.setup.method_a import DEFAULT_BASE
@@ -53,11 +50,7 @@ def _sha256_text(text: str) -> str:
 
 
 def _read_remote_main_tex(session) -> str:
-    zip_bytes = download_project_zip(session, PROJECT_ID)
-    with tempfile.TemporaryDirectory() as tmp:
-        target = Path(tmp)
-        extract_zip_to_directory(zip_bytes, target)
-        return (target / "main.tex").read_text(encoding="utf-8")
+    return OverleafRemote(session, PROJECT_ID).download("main.tex").decode("utf-8")
 
 
 def run_static_checks(replica_dir: Path | None = None) -> list[CheckResult]:
@@ -164,81 +157,25 @@ def run_live_sync_test(replica_dir: Path | None = None) -> tuple[bool, str]:
 
     main_tex.write_text(modified, encoding="utf-8")
 
-    root = Path(__file__).resolve().parents[1]
-    node_script = root / "scripts" / "push_overleaf_doc.js"
-    identity_file = Path(tempfile.mktemp(suffix=".json"))
-    identity_file.write_text(
-        json.dumps(
-            {"identity": session.identity, "url": session.server_url},
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
-    identity_file.write_text(
-        json.dumps(
-            {"identity": session.identity, "url": session.server_url},
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
+    remote = OverleafRemote(session, PROJECT_ID)
     try:
-        result = subprocess.run(
-            [
-                "node",
-                str(node_script),
-                str(identity_file),
-                PROJECT_ID,
-                "/main.tex",
-                modified,
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=45,
-        )
-        if result.returncode != 0:
-            main_tex.write_text(original_local, encoding="utf-8")
-            return False, (result.stderr or result.stdout or "node 推送失败").strip()
-
-        try:
-            remote_after = _read_remote_main_tex(session)
-        except ValueError as exc:
-            main_tex.write_text(original_local, encoding="utf-8")
-            return False, f"读取云端失败: {exc}"
+        remote.upload("main.tex", modified.encode("utf-8"))
+        remote_after = _read_remote_main_tex(session)
 
         if marker.strip() not in remote_after:
             main_tex.write_text(original_local, encoding="utf-8")
             return False, "推送后云端未出现测试标记。"
 
-        revert = subprocess.run(
-            [
-                "node",
-                str(node_script),
-                str(identity_file),
-                PROJECT_ID,
-                "/main.tex",
-                original_remote,
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=45,
-        )
+        remote.upload("main.tex", original_remote.encode("utf-8"))
         main_tex.write_text(original_local, encoding="utf-8")
-
-        if revert.returncode != 0:
-            return False, "云端已同步，但回滚失败，请手动检查 Overleaf 上的 main.tex。"
-
         final_remote = _read_remote_main_tex(session)
         if final_remote != original_remote:
             return False, "回滚后云端内容与测试前不一致。"
 
-        return True, "已完成本地修改 → Overleaf 推送 → 云端校验 → 回滚。"
-    except (OSError, subprocess.TimeoutExpired) as exc:
+        return True, "已完成文件级推送 → joinDoc 哈希回验 → 回滚。"
+    except (OSError, subprocess.TimeoutExpired, RuntimeError, ValueError) as exc:
         main_tex.write_text(original_local, encoding="utf-8")
         return False, f"执行推送脚本失败: {exc}"
-    finally:
-        identity_file.unlink(missing_ok=True)
 
 
 def run_tests(*, live: bool = False, replica_dir: Path | None = None) -> MethodATestReport:

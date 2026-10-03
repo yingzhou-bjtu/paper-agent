@@ -69,8 +69,8 @@ function emit(socket, event, ...args) {
   });
 }
 
-async function connectSocket(api, identity, projectId) {
-  const socket = api._initSocketV0(identity);
+async function connectSocket(api, identity, query) {
+  const socket = api._initSocketV0(identity, query);
   socket._api = api;
   socket._identity = identity;
   await new Promise((resolve, reject) => {
@@ -92,35 +92,15 @@ async function connectSocket(api, identity, projectId) {
 }
 
 async function joinProject(socket, projectId) {
-  try {
-    const [project] = await emit(socket, 'joinProject', { project_id: projectId });
-    return { socket, project };
-  } catch (_err) {
-    const api = socket._api;
-    const identity = socket._identity;
-    socket.disconnect();
-    const retrySocket = api._initSocketV0(identity, `?projectId=${projectId}&t=${Date.now()}`);
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('socket reconnect timeout')), 25000);
-      retrySocket.on('connect', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-      retrySocket.on('error', (err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
+  const project = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('joinProjectResponse timeout')), 25000);
+    socket.on('joinProjectResponse', (response) => {
+      clearTimeout(timer);
+      resolve(response.project);
     });
-    const project = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('joinProjectResponse timeout')), 25000);
-      retrySocket.on('joinProjectResponse', (res) => {
-        clearTimeout(timer);
-        resolve(res.project);
-      });
-      retrySocket.emit('joinProject', { project_id: projectId });
-    });
-    return { socket: retrySocket, project };
-  }
+    socket.emit('joinProject', { project_id: projectId });
+  });
+  return { socket, project };
 }
 
 async function apiResult(promise, action) {
@@ -216,7 +196,11 @@ async function main() {
   const { identity, url } = loadIdentity(identityFile);
   const api = new BaseAPI(url);
   api.setIdentity(identity);
-  const initialSocket = await connectSocket(api, identity, projectId);
+  const initialSocket = await connectSocket(
+    api,
+    identity,
+    `?projectId=${projectId}&t=${Date.now()}`
+  );
   const { socket, project } = await joinProject(initialSocket, projectId);
   const root = project.rootFolder[0];
   root.docs = root.docs || [];
