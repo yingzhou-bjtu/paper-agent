@@ -281,7 +281,7 @@ Works in **Chrome / Edge / Brave** (Chromium):
 6. In `paper-agent/.env`, set:
 
    ```env
-   OVERLEAF_COOKIE=overleaf_session2=PASTE_THE_VALUE_HERE
+   OVERLEAF_COOKIE=overleaf_session2=<paste-cookie-value>
    ```
 
    Use the real value with **no** quotes unless your shell requires them inside `.env`.
@@ -307,7 +307,7 @@ Works in **Chrome / Edge / Brave** (Chromium):
 #### Example `.env` line
 
 ```env
-OVERLEAF_COOKIE=overleaf_session2=s%3Axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+OVERLEAF_COOKIE=overleaf_session2=<paste-cookie-value>
 ```
 
 (Your value will differ; it often starts with `s%3A` and contains a dot.)
@@ -346,7 +346,7 @@ The cookie may be **expired** or the **project ID** is wrong. Log in again in th
 6. 编辑 `paper-agent/.env`，写入：
 
    ```env
-   OVERLEAF_COOKIE=overleaf_session2=这里粘贴刚才复制的值
+   OVERLEAF_COOKIE=overleaf_session2=<粘贴-cookie-值>
    ```
 
 7. 在仓库根目录执行：
