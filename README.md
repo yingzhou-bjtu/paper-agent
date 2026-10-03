@@ -44,6 +44,25 @@ paper-agent-workspace/
 
 See [docs/workspace-layout.md](docs/workspace-layout.md) for migration steps.
 
+### Repo layout
+
+```text
+paper-agent/
+├── bin/ scripts/ docs/ assets/   # tooling, guides, and logo
+├── skill/                        # bundled open-source Agent skills (keep intact)
+├── templates/                    # LaTeX gitignore and small helper templates
+├── 参考文献/                     # shared .bib and reading notes
+├── 参考图片/                     # reference figures and layout shots
+├── 参考画图代码/                 # reusable matplotlib / TikZ / PGFPlots snippets
+├── 参考模版/                     # custom and partial LaTeX templates
+└── 参考同类论文/                 # PDFs and paired .md notes of related work
+```
+
+The four `参考*` folders are workspace scratch space for your own references;
+they are not part of the core tooling and can be emptied freely. Conference
+LaTeX templates already shipped inside `skill/ccf-paper/CCFA-Skills/ccf-latex-templates`
+stay there so skill installation keeps working.
+
 ---
 
 ## Features
@@ -52,6 +71,7 @@ See [docs/workspace-layout.md](docs/workspace-layout.md) for migration steps.
 - **Method A (local replica)** — Overleaf project on disk + Workshop Local Replica + optional local Git.
 - **Cookie login helper** — configures Workshop for `www.overleaf.com` (SSO) without manual UI copy-paste every time.
 - **Sync verification** — `./bin/test-method-a` checks replica layout, Workshop registration, and `main.tex` parity with the cloud.
+- **Safe multi-user sync** — `./bin/collab-sync` does a real three-way merge before pushing, so edits from Overleaf web collaborators are not silently overwritten by local agents.
 - **Bundled OSS skills** — curated manifest; `./bin/install-skills minimal` symlinks into `.cursor/skills/`.
 - **Stdlib-first** — core scripts use Python 3.10+ only; no Qt, no extra deps for the guide itself.
 
@@ -122,6 +142,55 @@ paper-agent does **not** implement its own Overleaf sync protocol—it prepares 
 ./bin/test-method-a              # when sync feels wrong
 ./bin/setup-overleaf-project     # re-pull from cloud (overwrites local—backup first)
 ```
+
+For day-to-day push verification, keep the check lightweight:
+
+1. Confirm the push command returns `OK` for the edited files.
+2. Open the Overleaf project and recompile it.
+3. Run `./bin/test-method-a` only when sync looks suspicious.
+
+Avoid downloading the whole Overleaf project zip for routine hash checks. Use full-project zip/hash verification only for deep debugging, because Overleaf's zip endpoint can be slow and may make a healthy push look stuck.
+
+### Multi-user collaboration (you on paper-agent, others on Overleaf web)
+
+The Workshop save-on-edit loop pushes a whole file. When a collaborator also
+edits the same file on the Overleaf website, the last writer wins and the other
+side's edit is lost. `collab-sync` prevents this by keeping a per-file baseline
+and doing a three-way merge (it uses `git merge-file` under the hood):
+
+```bash
+./bin/collab-sync pull main.tex    # merge cloud edits into your replica
+./bin/collab-sync push main.tex    # merge your edit into the cloud
+./bin/collab-sync status main.tex  # report divergence without changing anything
+```
+
+What happens on `push`:
+
+- Only you changed → plain push.
+- Only a web collaborator changed → pull their edit into your replica.
+- Both changed different parts → automatic merge, both edits kept.
+- Both changed the **same lines** → exit code `1`, no data is overwritten on
+  either side; resolve the conflict manually and push again.
+
+The baseline is stored **outside the replica** by default
+(`../papers/<project>/.paper-agent-sync`), so it is never uploaded to Overleaf.
+For offline rehearsal use `--fake-remote-dir <dir>` to replace Overleaf with a
+local directory.
+
+For paper text edits, also run the project-local layout checker before pushing or after any substantial revision:
+
+```powershell
+cd ../papers/<project>/method-a
+& .\scripts\build-and-check.ps1
+```
+
+If MiKTeX emits update warnings on stderr and stops the wrapper, run the checker on the latest log:
+
+```powershell
+& .\scripts\check-layout.ps1 -LogFile main.log -TexFile main.tex -ShowContext
+```
+
+Treat reported high-badness underfull boxes as likely one-word or two-word lines in the PDF, then shorten, split, or lightly rephrase the referenced paragraph before syncing to Overleaf.
 
 Open the remote virtual workspace instead of the replica:
 
@@ -292,6 +361,7 @@ Use **relative paths** inside the repo and `~/...` for the replica. Avoid machin
 | `./bin/open-overleaf-replica` | `cursor -r` on replica |
 | `./bin/open-overleaf-project` | Open remote Overleaf project |
 | `./bin/test-method-a` | Verify replica + sync (`--live` for push test) |
+| `./bin/collab-sync <pull|push|status> <file>` | Safe three-way merge with Overleaf web collaborators |
 | `./bin/install-skills [preset]` | Link skills (`minimal`, `research`, …) |
 | `./bin/audit-release` | Privacy / compliance scan (maintainers) |
 | `./bin/vendor-skills --all` | Re-download vendored skills (maintainers) |
@@ -332,6 +402,8 @@ Cursor → Command Palette → **Shell Command: Install 'cursor' command in PATH
 | Local ≠ remote `main.tex` | Save in Cursor to push, or redeploy to pull (**destroys unsynced local edits**) |
 
 You want eight `[PASS]` lines and `结果: 通过` at the end.
+
+If a manual push script already returned `OK`, prefer an Overleaf recompile as the first confirmation. Full-project zip/hash comparison is a last-resort diagnostic, not the default verification path.
 </details>
 
 <details>

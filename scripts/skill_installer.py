@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -45,10 +46,19 @@ def _link(name: str, src: Path) -> str | None:
     DEST.mkdir(parents=True, exist_ok=True)
     dest = DEST / name
     if dest.is_symlink() or dest.exists():
-        dest.unlink()
+        if dest.is_dir() and not dest.is_symlink():
+            shutil.rmtree(dest)
+        else:
+            dest.unlink()
     rel_target = os.path.relpath(src.resolve(), dest.parent.resolve())
-    dest.symlink_to(rel_target, target_is_directory=True)
-    return f"已链接: {name} -> {rel_target}"
+    try:
+        dest.symlink_to(rel_target, target_is_directory=True)
+        return f"已链接: {name} -> {rel_target}"
+    except OSError as exc:
+        if getattr(exc, "winerror", None) != 1314:
+            raise
+        shutil.copytree(src, dest)
+        return f"已复制: {name} -> {dest}"
 
 
 def _print_compliance_hint(name: str, entry: dict) -> None:
@@ -101,7 +111,7 @@ def install_preset(preset: str = "minimal") -> int:
             skipped += 1
             continue
         print(msg)
-        if msg.startswith("已链接"):
+        if msg.startswith(("已链接", "已复制")):
             linked += 1
         else:
             skipped += 1

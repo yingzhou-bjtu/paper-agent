@@ -1,9 +1,25 @@
 #!/usr/bin/env node
 /**
  * Push full document content to an Overleaf doc via Socket.IO.
- * Usage: node push_overleaf_doc.js <identity.json> <projectId> <docPath> [content]
+ * Usage: node push_overleaf_doc.js <identity.json> <projectId> <docPath> [content|@file]
  */
 const Module = require('module');
+const workerThreads = require('worker_threads');
+if (typeof workerThreads.markAsUncloneable !== 'function') {
+  workerThreads.markAsUncloneable = () => {};
+}
+if (typeof Promise.withResolvers !== 'function') {
+  Promise.withResolvers = function withResolvers() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+}
+
 const originalRequire = Module.prototype.require;
 Module.prototype.require = function patchedRequire(request) {
   if (request === 'vscode') {
@@ -17,12 +33,20 @@ Module.prototype.require = function patchedRequire(request) {
 
 const fs = require('fs');
 const path = require('path');
-const util = require('util');
 
-const EXT = path.join(
-  process.env.HOME,
-  '.cursor/extensions/iamhyc.overleaf-workshop-0.15.9-universal'
-);
+function findExtensionRoot() {
+  const home = process.env.USERPROFILE || process.env.HOME;
+  if (!home) throw new Error('Cannot locate user home directory.');
+  const extensionsDir = path.join(home, '.cursor', 'extensions');
+  const matches = fs
+    .readdirSync(extensionsDir)
+    .filter((name) => /^iamhyc\.overleaf-workshop-.*-universal$/.test(name))
+    .sort();
+  if (!matches.length) throw new Error('Overleaf Workshop extension not found.');
+  return path.join(extensionsDir, matches[matches.length - 1]);
+}
+
+const EXT = findExtensionRoot();
 const { BaseAPI } = require(path.join(EXT, 'out/api/base'));
 const DiffMatchPatch = require(path.join(EXT, 'node_modules/diff-match-patch'));
 
@@ -46,17 +70,60 @@ function loadIdentity(identityFile) {
   return { identity: payload.identity, url: payload.url || 'https://www.overleaf.com/' };
 }
 
-function findDocByPath(folder, targetPath) {
+async function apiResult(promise, action) {
+  const result = await promise;
+  if (result.type && result.type !== 'success') {
+    throw new Error(`${action} failed: ${result.message || JSON.stringify(result)}`);
+  }
+  return result;
+}
+
+function findDocByPath(folder, targetPath, prefix = '') {
   const docs = folder.docs || [];
   for (const doc of docs) {
-    const docPath = `${folder.path || '/'}${doc.name}`.replace(/\/+/g, '/');
+    const docPath = `${prefix}/${doc.name}`.replace(/\/+/g, '/');
     if (docPath === targetPath) return doc;
   }
   for (const sub of folder.folders || []) {
-    const found = findDocByPath(sub, targetPath);
+    const found = findDocByPath(sub, targetPath, `${prefix}/${sub.name}`.replace(/\/+/g, '/'));
     if (found) return found;
   }
   return null;
+}
+
+function findFolderByPath(folder, targetPath, prefix = '') {
+  const normalized = targetPath.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+  const folderPath = prefix.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+  if (normalized === folderPath) return folder;
+  for (const sub of folder.folders || []) {
+    const subPath = `${prefix}/${sub.name}`.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+    const found = findFolderByPath(sub, normalized, subPath);
+    if (found) return found;
+  }
+  return null;
+}
+
+async function ensureDocByPath(api, identity, projectId, root, targetPath) {
+  const normalized = targetPath.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+  const parts = normalized.split('/');
+  const filename = parts.pop();
+  const parentPath = parts.join('/');
+  const parentFolder = parentPath ? findFolderByPath(root, parentPath) : root;
+  if (!parentFolder) throw new Error(`未找到目录: ${parentPath}`);
+
+  for (const fileRef of (parentFolder.fileRefs || []).filter((file) => file.name === filename)) {
+    await apiResult(api.deleteEntity(identity, projectId, 'file', fileRef._id), `delete fileRef ${targetPath}`);
+  }
+  parentFolder.fileRefs = (parentFolder.fileRefs || []).filter((file) => file.name !== filename);
+
+  let doc = (parentFolder.docs || []).find((item) => item.name === filename);
+  if (!doc) {
+    const created = await apiResult(api.addDoc(identity, projectId, parentFolder._id, filename), `add doc ${targetPath}`);
+    doc = created.entity;
+    parentFolder.docs = parentFolder.docs || [];
+    parentFolder.docs.push(doc);
+  }
+  return doc;
 }
 
 function buildUpdate(doc, newContent) {
@@ -152,8 +219,14 @@ async function main() {
   const identityFile = process.argv[2];
   const projectId = process.argv[3];
   const docPath = process.argv[4];
-  const newContent =
-    process.argv[5] !== undefined ? process.argv[5] : fs.readFileSync(0, 'utf-8');
+  let newContent;
+  if (process.argv[5] === undefined) {
+    newContent = fs.readFileSync(0, 'utf-8');
+  } else if (process.argv[5].startsWith('@')) {
+    newContent = fs.readFileSync(process.argv[5].slice(1), 'utf-8');
+  } else {
+    newContent = process.argv[5];
+  }
 
   if (!identityFile || !projectId || !docPath) {
     console.error(
@@ -179,8 +252,8 @@ async function main() {
   } catch (err) {
     throw err;
   }
-  const doc = findDocByPath(project.rootFolder[0], docPath);
-  if (!doc) throw new Error(`未找到文档: ${docPath}`);
+  const root = project.rootFolder[0];
+  const doc = findDocByPath(root, docPath) || await ensureDocByPath(api, identity, projectId, root, docPath);
 
   const [docLinesAscii, version] = await emit(socket, 'joinDoc', doc._id, {
     encodeRanges: true,

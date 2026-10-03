@@ -1,5 +1,8 @@
 .env
+.env.bak-*
+.env.*.bak
 .audit-denylist
+本地配置状态/
 *.pyc
 __pycache__/
 .pytest_cache/

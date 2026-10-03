@@ -42,6 +42,10 @@ def _env_has_project_config(env_path: Path) -> bool:
     return bool(values.get("OVERLEAF_PROJECT_NAME") and values.get("OVERLEAF_PROJECT_ID"))
 
 
+def _python_script(name: str) -> list[str]:
+    return [sys.executable, str(ROOT / "scripts" / name)]
+
+
 def run_guide(*, quick: bool = False, skip_skills: bool = False) -> int:
     _banner()
     env_path = ROOT / ".env"
@@ -67,7 +71,7 @@ def run_guide(*, quick: bool = False, skip_skills: bool = False) -> int:
 
     # 2. 环境检查
     _step("2/6 Cursor / Overleaf 检查")
-    check_code = _run([str(ROOT / "bin/check-cursor-setup")])
+    check_code = _run(_python_script("run_checks.py"))
     if check_code != 0:
         print(yellow("\n检查未通过。常见原因：未安装 Overleaf Workshop，或未配置 Cookie。"))
         if yes_no("现在配置 Overleaf Cookie？", default=True):
@@ -78,18 +82,18 @@ def run_guide(*, quick: bool = False, skip_skills: bool = False) -> int:
             cookie = input("粘贴 Cookie（留空跳过）: ").strip()
             if cookie:
                 c = _run(
-                    [str(ROOT / "bin/configure-overleaf-cookie"), "--cookie", cookie],
+                    _python_script("configure_overleaf_cookie.py") + ["--cookie", cookie],
                     allow_fail=True,
                 )
                 if c == 0:
-                    check_code = _run([str(ROOT / "bin/check-cursor-setup")])
+                    check_code = _run(_python_script("run_checks.py"))
         if check_code != 0:
             print(yellow("可稍后手动运行 ./bin/check-cursor-setup"))
 
     # 3. 部署 Method A
     _step("3/6 部署 Method A（本地副本）")
     if quick or yes_no("部署 / 刷新 Method A？", default=True):
-        code = _run([str(ROOT / "bin/setup-overleaf-project")])
+        code = _run(_python_script("setup_overleaf_project.py"))
         if code != 0:
             return code
     else:
@@ -100,13 +104,13 @@ def run_guide(*, quick: bool = False, skip_skills: bool = False) -> int:
     if skip_skills:
         print("已跳过（--skip-skills）。")
     elif quick or yes_no("安装推荐 Skills 到 .cursor/skills/？", default=True):
-        _run([str(ROOT / "bin/install-skills"), "minimal"], allow_fail=True)
+        _run(_python_script("skill_installer.py") + ["minimal"], allow_fail=True)
     else:
         print("已跳过。")
 
     # 5. 验证
     _step("5/6 验证 Method A")
-    test_code = _run([str(ROOT / "bin/test-method-a")], allow_fail=True)
+    test_code = _run(_python_script("test_method_a_cli.py"), allow_fail=True)
 
     # 6. 完成
     _step("6/6 完成")
