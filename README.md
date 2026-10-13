@@ -1,4 +1,4 @@
-# paper-agent
+# Paper Agent: Local Overleaf Writing Workspace
 
 <p align="center">
   <img src="assets/logo.png" alt="paper-agent logo" width="160">
@@ -8,6 +8,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 **Onboarding and tooling for writing Overleaf papers in Cursor.**
+
+See [docs/PROJECT_IDENTITY.md](docs/PROJECT_IDENTITY.md) for the public project name, scope, and repository boundary.
 
 Clone your project to disk, sync through [Overleaf Workshop](https://github.com/overleaf-workshop/Overleaf-Workshop), optionally install open-source Agent skills, and verify the setup with one command.
 
