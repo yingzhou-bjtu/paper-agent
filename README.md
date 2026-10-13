@@ -29,6 +29,7 @@ Clone your project to disk, sync through [Overleaf Workshop](https://github.com/
 - [Troubleshooting](#troubleshooting)
 - [Agent skills](#agent-skills)
 - [Docs & license](#docs--license)
+- [Open-source repository standard](docs/OPEN_SOURCE_STANDARD.md)
 
 ---
 
