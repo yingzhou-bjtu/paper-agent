@@ -185,6 +185,10 @@ def scan_manifest(report: AuditReport) -> None:
         report.findings.append(Finding("skill/manifest.json", 0, f"JSON 无效: {exc}"))
         return
 
+    if not isinstance(data, dict):
+        report.findings.append(Finding("skill/manifest.json", 0, "manifest 必须是对象"))
+        return
+
     skills = data.get("skills") or {}
     if not isinstance(skills, dict):
         report.findings.append(Finding("skill/manifest.json", 0, "skills 必须是对象"))

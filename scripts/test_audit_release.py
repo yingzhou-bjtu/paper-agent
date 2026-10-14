@@ -54,7 +54,24 @@ def test_scan_manifest_reports_invalid_schema() -> None:
     assert "skills" in report.findings[0].message
 
 
+def test_scan_manifest_reports_non_object_manifest() -> None:
+    original_manifest = audit_release.MANIFEST
+    with tempfile.TemporaryDirectory() as tmp:
+        manifest = Path(tmp) / "manifest.json"
+        manifest.write_text('["not-an-object"]', encoding="utf-8")
+        report = AuditReport()
+        try:
+            audit_release.MANIFEST = manifest
+            audit_release.scan_manifest(report)
+        finally:
+            audit_release.MANIFEST = original_manifest
+
+    assert report.findings
+    assert "manifest" in report.findings[0].message
+
+
 if __name__ == "__main__":
     test_report_payload_serializes_findings()
     test_json_out_writes_audit_report()
     test_scan_manifest_reports_invalid_schema()
+    test_scan_manifest_reports_non_object_manifest()
