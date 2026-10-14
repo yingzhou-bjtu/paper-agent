@@ -227,16 +227,29 @@ def update_active_link(root: Path, slug: str | None) -> None:
         link.symlink_to(project_dir(root, slug), target_is_directory=True)
 
 
+def validate_archive_members(
+    members: list[tarfile.TarInfo],
+    destination: Path,
+    slug: str,
+) -> None:
+    destination_root = destination.resolve()
+    expected_prefix = f"{slug}/"
+    for member in members:
+        if member.name != slug and not member.name.startswith(expected_prefix):
+            raise PaperProjectError(f"归档路径越界: {member.name}")
+        if member.issym() or member.islnk():
+            raise PaperProjectError(f"归档包含链接成员: {member.name}")
+        if not member.isdir() and not member.isfile():
+            raise PaperProjectError(f"归档包含不支持的成员类型: {member.name}")
+        target = (destination / member.name).resolve()
+        if not target.is_relative_to(destination_root):
+            raise PaperProjectError(f"归档路径越界: {member.name}")
+
+
 def safe_extract(archive: Path, destination: Path, slug: str) -> None:
     with tarfile.open(archive, "r:gz") as handle:
         members = handle.getmembers()
-        expected_prefix = f"{slug}/"
-        for member in members:
-            if member.name != slug and not member.name.startswith(expected_prefix):
-                raise PaperProjectError(f"归档路径越界: {member.name}")
-            target = (destination / member.name).resolve()
-            if not target.is_relative_to(destination.resolve()):
-                raise PaperProjectError(f"归档路径越界: {member.name}")
+        validate_archive_members(members, destination, slug)
         handle.extractall(destination)
 
 
@@ -481,14 +494,8 @@ def doctor_project_workspace(root: Path) -> list[str]:
         if archived:
             try:
                 with tarfile.open(archive_path(root, slug), "r:gz") as handle:
-                    safe_extract_members = handle.getmembers()
-                    prefix = f"{slug}/"
-                    if any(
-                        member.name != slug and not member.name.startswith(prefix)
-                        for member in safe_extract_members
-                    ):
-                        problems.append(f"{slug}: 归档包含越界路径")
-            except (OSError, tarfile.TarError) as exc:
+                    validate_archive_members(handle.getmembers(), projects_root(root), slug)
+            except (OSError, tarfile.TarError, PaperProjectError) as exc:
                 problems.append(f"{slug}: 归档不可读取 ({exc})")
         if expanded:
             missing = [

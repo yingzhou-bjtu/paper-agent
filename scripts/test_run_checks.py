@@ -6,15 +6,16 @@ from __future__ import annotations
 import contextlib
 import io
 import json
-import sys
 from collections.abc import Callable
-from pathlib import Path
 
-SCRIPTS_DIR = Path(__file__).resolve().parent
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
+try:
+    from scripts.lib.repo import ensure_repo_on_path
+except ModuleNotFoundError:
+    from lib.repo import ensure_repo_on_path
 
-import run_checks
+ensure_repo_on_path()
+
+from scripts import run_checks
 from scripts.checks.overleaf_workshop import CheckResult
 
 

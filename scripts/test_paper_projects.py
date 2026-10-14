@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import tarfile
 import tempfile
 from pathlib import Path
 
@@ -14,10 +15,14 @@ except ModuleNotFoundError:
 
 from scripts.paper_projects import (
     add_project,
+    archive_project,
+    archive_path,
     configure_project,
     doctor_project_workspace,
     list_projects,
+    PaperProjectError,
     rename_project,
+    safe_extract,
     switch_project,
 )
 
@@ -77,5 +82,52 @@ def main() -> int:
     return 0
 
 
+def test_safe_extract_rejects_archive_links() -> None:
+    with tempfile.TemporaryDirectory(prefix="paper-project-link-test-") as temporary:
+        root = Path(temporary)
+        archive = root / "alpha.tar.gz"
+        destination = root / "extract"
+        destination.mkdir()
+
+        with tarfile.open(archive, "w:gz") as handle:
+            directory = tarfile.TarInfo("alpha")
+            directory.type = tarfile.DIRTYPE
+            handle.addfile(directory)
+            link = tarfile.TarInfo("alpha/link")
+            link.type = tarfile.SYMTYPE
+            link.linkname = "/tmp/outside"
+            handle.addfile(link)
+
+        try:
+            safe_extract(archive, destination, "alpha")
+        except PaperProjectError as exc:
+            assert "链接" in str(exc)
+        else:
+            raise AssertionError("expected symlink archive member to fail")
+
+
+def test_doctor_reports_archive_links() -> None:
+    with tempfile.TemporaryDirectory(prefix="paper-project-doctor-link-test-") as temporary:
+        root = Path(temporary)
+        add_project(root, "alpha", "Alpha", "", activate=False)
+        archive_project(root, "alpha")
+        archive = archive_path(root, "alpha")
+        with tarfile.open(archive, "w:gz") as handle:
+            directory = tarfile.TarInfo("alpha")
+            directory.type = tarfile.DIRTYPE
+            handle.addfile(directory)
+            link = tarfile.TarInfo("alpha/link")
+            link.type = tarfile.SYMTYPE
+            link.linkname = "/tmp/outside"
+            handle.addfile(link)
+
+        problems = doctor_project_workspace(root)
+
+        assert problems
+        assert any("链接" in problem for problem in problems)
+
+
 if __name__ == "__main__":
+    test_safe_extract_rejects_archive_links()
+    test_doctor_reports_archive_links()
     raise SystemExit(main())

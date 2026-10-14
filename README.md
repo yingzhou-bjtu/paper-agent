@@ -112,6 +112,8 @@ Bind or change an Overleaf project after creating a local profile:
 
 `doctor` checks the active link, registry state, archive integrity, required
 material directories, and the local `.env` mapping without printing credentials.
+Archive validation rejects path escapes, links, and special file types before a
+paper is restored.
 
 ---
 
