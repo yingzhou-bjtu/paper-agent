@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+try:
+    from scripts.lib.repo import ROOT, ensure_repo_on_path
+except ModuleNotFoundError:
+    from lib.repo import ROOT, ensure_repo_on_path
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+ensure_repo_on_path(ROOT)
 
 from scripts.lib.env_file import load_project_env
 

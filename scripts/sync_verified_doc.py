@@ -6,13 +6,17 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import sys
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-import scripts.lib.bootstrap
+try:
+    from scripts.lib.repo import ensure_repo_on_path
+except ModuleNotFoundError:
+    from lib.repo import ensure_repo_on_path
+
+ensure_repo_on_path()
+
+import scripts.lib.bootstrap  # noqa: F401
 from scripts.lib.env_file import env_get
 from scripts.lib.overleaf_api import default_project, load_session
 from scripts.lib.overleaf_remote import OverleafRemote

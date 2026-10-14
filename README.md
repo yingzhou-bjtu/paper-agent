@@ -217,6 +217,7 @@ For wrapper-level changes, run the static bin check:
 
 ```bash
 python3 scripts/test_bin_wrappers.py
+python3 scripts/test_repo_bootstrap.py
 python3 scripts/test_open_overleaf_replica.py
 find bin -maxdepth 1 -type f ! -name '*.ps1' -print0 | xargs -0 -n1 bash -n
 ```

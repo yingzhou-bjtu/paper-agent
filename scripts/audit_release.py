@@ -10,9 +10,10 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+try:
+    from scripts.lib.repo import ROOT
+except ModuleNotFoundError:
+    from lib.repo import ROOT
 
 MANIFEST = ROOT / "skill" / "manifest.json"
 

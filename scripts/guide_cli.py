@@ -8,9 +8,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+try:
+    from scripts.lib.repo import ROOT
+except ModuleNotFoundError:
+    from lib.repo import ROOT
 
 from scripts.lib.env_file import parse_env_file  # noqa: E402
 from scripts.lib.terminal import bold, green, red, yellow, yes_no  # noqa: E402

@@ -18,13 +18,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import sys
 import zipfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+try:
+    from scripts.lib.repo import ensure_repo_on_path
+except ModuleNotFoundError:
+    from lib.repo import ensure_repo_on_path
+
+ensure_repo_on_path()
 
 import scripts.lib.bootstrap  # noqa: F401
 

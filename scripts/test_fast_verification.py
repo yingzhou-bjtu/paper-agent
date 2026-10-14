@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import tempfile
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+try:
+    from scripts.lib.repo import ensure_repo_on_path
+except ModuleNotFoundError:
+    from lib.repo import ensure_repo_on_path
+
+ensure_repo_on_path()
 
 from scripts.lib.collab import SyncEngine
 from scripts.lib.overleaf_api import OverleafSession
