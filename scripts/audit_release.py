@@ -108,14 +108,18 @@ def _should_scan(rel: str) -> bool:
     return rel.startswith(SCAN_PREFIXES)
 
 
-def _scan_text_file(path: Path, rel: str, report: AuditReport) -> None:
+def _scan_text_file(
+    path: Path,
+    rel: str,
+    report: AuditReport,
+    denylist: tuple[str, ...],
+) -> None:
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         report.findings.append(Finding(rel, 0, f"无法读取: {exc}"))
         return
 
-    denylist = _load_denylist()
     for line_no, line in enumerate(text.splitlines(), start=1):
         for token in denylist:
             if token in line:
@@ -137,17 +141,21 @@ def _scan_text_file(path: Path, rel: str, report: AuditReport) -> None:
             report.findings.append(Finding(rel, line_no, "疑似 Overleaf 项目 ID"))
 
 
-def scan_tracked_files(report: AuditReport) -> None:
-    for path in _git_tracked_files():
+def scan_tracked_files(
+    report: AuditReport,
+    tracked_files: list[Path],
+    denylist: tuple[str, ...],
+) -> None:
+    for path in tracked_files:
         rel = path.relative_to(ROOT).as_posix()
         if not _should_scan(rel):
             continue
         if path.is_file():
-            _scan_text_file(path, rel, report)
+            _scan_text_file(path, rel, report, denylist)
 
 
-def scan_global_sensitive_markers(report: AuditReport) -> None:
-    for path in _git_tracked_files():
+def scan_global_sensitive_markers(report: AuditReport, tracked_files: list[Path]) -> None:
+    for path in tracked_files:
         rel = path.relative_to(ROOT).as_posix()
         try:
             text = path.read_text(encoding="utf-8")
@@ -214,9 +222,11 @@ def scan_local_skill_links(report: AuditReport) -> None:
 
 def run_audit() -> AuditReport:
     report = AuditReport()
+    tracked_files = _git_tracked_files()
+    denylist = _load_denylist()
     scan_manifest(report)
-    scan_tracked_files(report)
-    scan_global_sensitive_markers(report)
+    scan_tracked_files(report, tracked_files, denylist)
+    scan_global_sensitive_markers(report, tracked_files)
     scan_local_skill_links(report)
     return report
 
