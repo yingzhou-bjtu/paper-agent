@@ -223,6 +223,7 @@ python3 scripts/test_repo_bootstrap.py
 python3 scripts/test_audit_release.py
 python3 scripts/audit_release.py --json-out /tmp/paper_agent_release_audit.json
 python3 scripts/test_run_checks.py
+python3 scripts/test_cursor_paths.py
 python3 scripts/test_open_overleaf_replica.py
 find bin -maxdepth 1 -type f ! -name '*.ps1' -print0 | xargs -0 -n1 bash -n
 ```
@@ -424,6 +425,7 @@ Copy [`.env.example`](.env.example) or run `./bin/setup-env`. **Do not commit `.
 | `PAPER_AGENT_ROOT` | | Leave empty → auto-detect repo root |
 | `PAPER_AGENT_STATE_DIR` | | Default `.paper-agent`; local multi-paper registry and archives |
 | `PAPER_AGENT_ACTIVE_LINK` | | Default `当前论文`; symlink name for the active paper |
+| `CURSOR_USER_DATA_DIR` | | Optional Cursor user-data override; defaults to the platform Cursor profile path |
 | `CURSOR_EXTENSIONS_DIR` | | Optional Cursor extension root override; defaults to `~/.cursor/extensions` |
 | `REFERENCES_DIR` | | Default `参考文献` (relative to repo) |
 | `EXPERIMENT_CODE_DIR` | | Default `实验代码` (relative to repo) |
@@ -431,6 +433,9 @@ Copy [`.env.example`](.env.example) or run `./bin/setup-env`. **Do not commit `.
 \* Required unless Workshop is already logged in and checks pass.
 
 Use **relative paths** inside the repo and `~/...` for the replica. Avoid machine-specific absolute paths.
+Cursor path overrides are expanded to absolute paths before state databases or
+extensions are inspected, so checks do not depend on the caller's current
+working directory.
 `PAPER_AGENT_STATE_DIR` and `PAPER_AGENT_ACTIVE_LINK` must not point at the
 repository root; keep them as dedicated local entries such as `.paper-agent`
 and `当前论文`.

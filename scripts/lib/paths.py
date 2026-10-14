@@ -15,7 +15,7 @@ def cursor_cli() -> str | None:
 def cursor_user_data_dir() -> Path:
     override = os.environ.get("CURSOR_USER_DATA_DIR")
     if override:
-        return Path(override).expanduser()
+        return Path(override).expanduser().resolve()
 
     system = platform.system()
     home = Path.home()
@@ -32,7 +32,7 @@ def cursor_user_data_dir() -> Path:
 def cursor_extensions_dir() -> Path:
     override = os.environ.get("CURSOR_EXTENSIONS_DIR")
     if override:
-        return Path(override).expanduser()
+        return Path(override).expanduser().resolve()
 
     # Cursor keeps extensions under ~/.cursor/extensions on all platforms.
     return Path.home() / ".cursor" / "extensions"
