@@ -185,7 +185,17 @@ def scan_manifest(report: AuditReport) -> None:
         report.findings.append(Finding("skill/manifest.json", 0, f"JSON 无效: {exc}"))
         return
 
-    for name, entry in (data.get("skills") or {}).items():
+    skills = data.get("skills") or {}
+    if not isinstance(skills, dict):
+        report.findings.append(Finding("skill/manifest.json", 0, "skills 必须是对象"))
+        return
+
+    for name, entry in skills.items():
+        if not isinstance(entry, dict):
+            report.findings.append(
+                Finding("skill/manifest.json", 0, f"skill {name!r} 配置必须是对象")
+            )
+            continue
         if not entry.get("open_source", True):
             report.findings.append(
                 Finding("skill/manifest.json", 0, f"非开源 skill 在 manifest 中: {name}")

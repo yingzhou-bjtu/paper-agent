@@ -10,8 +10,10 @@ from io import StringIO
 from pathlib import Path
 
 try:
+    import scripts.audit_release as audit_release
     from scripts.audit_release import AuditReport, Finding, main, report_payload
 except ModuleNotFoundError:
+    import audit_release
     from audit_release import AuditReport, Finding, main, report_payload
 
 
@@ -36,6 +38,23 @@ def test_json_out_writes_audit_report() -> None:
         assert payload["findings"] == []
 
 
+def test_scan_manifest_reports_invalid_schema() -> None:
+    original_manifest = audit_release.MANIFEST
+    with tempfile.TemporaryDirectory() as tmp:
+        manifest = Path(tmp) / "manifest.json"
+        manifest.write_text('{"skills": ["not-an-object"]}', encoding="utf-8")
+        report = AuditReport()
+        try:
+            audit_release.MANIFEST = manifest
+            audit_release.scan_manifest(report)
+        finally:
+            audit_release.MANIFEST = original_manifest
+
+    assert report.findings
+    assert "skills" in report.findings[0].message
+
+
 if __name__ == "__main__":
     test_report_payload_serializes_findings()
     test_json_out_writes_audit_report()
+    test_scan_manifest_reports_invalid_schema()

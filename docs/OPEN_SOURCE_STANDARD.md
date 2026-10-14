@@ -67,6 +67,10 @@ Then run the repository-specific check from `README.md`. If the full check needs
 data, Docker, GPU, credentials, or external services, document the smallest
 public smoke check separately from the full reproduction path.
 
+Release audit failures should be reported as structured findings whenever
+possible. A malformed `skill/manifest.json` schema is an audit finding, not an
+uncaught exception.
+
 ## Governance Files
 
 Required public-facing files:
