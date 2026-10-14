@@ -10,8 +10,10 @@ from pathlib import Path
 
 try:
     from scripts.lib.repo import ROOT
+    from scripts.lib.test_runner import run_test_functions
 except ModuleNotFoundError:
     from lib.repo import ROOT
+    from lib.test_runner import run_test_functions
 
 from scripts.paper_projects import (
     add_project,
@@ -161,7 +163,5 @@ def test_workspace_path_overrides_reject_repository_root() -> None:
 
 
 if __name__ == "__main__":
-    test_safe_extract_rejects_archive_links()
-    test_doctor_reports_archive_links()
-    test_workspace_path_overrides_reject_repository_root()
+    run_test_functions(globals())
     raise SystemExit(main())

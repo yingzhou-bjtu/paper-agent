@@ -5,6 +5,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+try:
+    from scripts.lib.test_runner import run_test_functions
+except ModuleNotFoundError:
+    from lib.test_runner import run_test_functions
+
 
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_SYS_PATH_INSERT = {
@@ -27,7 +32,7 @@ def test_entrypoints_use_repo_bootstrap() -> None:
 
 
 def main() -> int:
-    test_entrypoints_use_repo_bootstrap()
+    run_test_functions(globals())
     print("repo bootstrap tests: PASS")
     return 0
 

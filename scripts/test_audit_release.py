@@ -12,9 +12,11 @@ from pathlib import Path
 try:
     import scripts.audit_release as audit_release
     from scripts.audit_release import AuditReport, Finding, main, report_payload
+    from scripts.lib.test_runner import run_test_functions
 except ModuleNotFoundError:
     import audit_release
     from audit_release import AuditReport, Finding, main, report_payload
+    from lib.test_runner import run_test_functions
 
 
 def test_report_payload_serializes_findings() -> None:
@@ -71,7 +73,4 @@ def test_scan_manifest_reports_non_object_manifest() -> None:
 
 
 if __name__ == "__main__":
-    test_report_payload_serializes_findings()
-    test_json_out_writes_audit_report()
-    test_scan_manifest_reports_invalid_schema()
-    test_scan_manifest_reports_non_object_manifest()
+    run_test_functions(globals())

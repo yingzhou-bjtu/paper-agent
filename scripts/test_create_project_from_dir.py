@@ -9,8 +9,10 @@ from pathlib import Path
 
 try:
     from scripts.create_project_from_dir import resolve_staging_zip_path, zip_directory
+    from scripts.lib.test_runner import run_test_functions
 except ModuleNotFoundError:
     from create_project_from_dir import resolve_staging_zip_path, zip_directory
+    from lib.test_runner import run_test_functions
 
 
 def test_staging_zip_defaults_next_to_source() -> None:
@@ -61,10 +63,7 @@ def test_zip_directory_keeps_staging_zip_outside_archive() -> None:
 
 
 def main() -> int:
-    test_staging_zip_defaults_next_to_source()
-    test_staging_zip_rejects_source_tree_output()
-    test_staging_zip_rejects_non_zip_suffix()
-    test_zip_directory_keeps_staging_zip_outside_archive()
+    run_test_functions(globals())
     print("create-project-from-dir tests: PASS")
     return 0
 

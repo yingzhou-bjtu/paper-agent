@@ -10,8 +10,10 @@ from collections.abc import Callable
 
 try:
     from scripts.lib.repo import ensure_repo_on_path
+    from scripts.lib.test_runner import run_test_functions
 except ModuleNotFoundError:
     from lib.repo import ensure_repo_on_path
+    from lib.test_runner import run_test_functions
 
 ensure_repo_on_path()
 
@@ -63,5 +65,4 @@ def test_json_output_reports_failure() -> None:
 
 
 if __name__ == "__main__":
-    test_list_checks()
-    test_json_output_reports_failure()
+    run_test_functions(globals())

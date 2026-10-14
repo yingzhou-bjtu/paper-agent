@@ -9,8 +9,10 @@ from pathlib import Path
 
 try:
     from scripts.lib.repo import ensure_repo_on_path
+    from scripts.lib.test_runner import run_test_functions
 except ModuleNotFoundError:
     from lib.repo import ensure_repo_on_path
+    from lib.test_runner import run_test_functions
 
 ensure_repo_on_path()
 
@@ -50,7 +52,7 @@ def test_cursor_path_overrides_are_absolute() -> None:
 
 
 def main() -> int:
-    test_cursor_path_overrides_are_absolute()
+    run_test_functions(globals())
     print("cursor path tests: PASS")
     return 0
 

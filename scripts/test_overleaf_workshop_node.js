@@ -13,8 +13,8 @@ function main() {
     path.resolve('/tmp/cursor-ext')
   );
   assert.strictEqual(
-    cursorExtensionsDir({ HOME: '/home/example' }),
-    path.join('/home/example', '.cursor', 'extensions')
+    cursorExtensionsDir({ HOME: '/tmp/example-home' }),
+    path.join('/tmp/example-home', '.cursor', 'extensions')
   );
   assert.throws(() => cursorExtensionsDir({}), /Cannot locate user home directory/);
 

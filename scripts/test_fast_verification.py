@@ -8,8 +8,10 @@ from pathlib import Path
 
 try:
     from scripts.lib.repo import ensure_repo_on_path
+    from scripts.lib.test_runner import run_test_functions
 except ModuleNotFoundError:
     from lib.repo import ensure_repo_on_path
+    from lib.test_runner import run_test_functions
 
 ensure_repo_on_path()
 
@@ -110,10 +112,7 @@ def test_collab_sync_rejects_state_dir_inside_replica() -> None:
 
 
 def main() -> int:
-    test_upload_consumes_same_socket_metadata()
-    test_normalize_doc_path_rejects_escapes()
-    test_sync_engine_rejects_state_escape()
-    test_collab_sync_rejects_state_dir_inside_replica()
+    run_test_functions(globals())
     with tempfile.TemporaryDirectory(prefix="paper-agent-fast-verify-") as temporary:
         remote = FakeRemote(b"base\n")
         engine = SyncEngine(remote, Path(temporary))
