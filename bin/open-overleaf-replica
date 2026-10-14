@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=../scripts/lib/load-env.sh
-source "$ROOT/scripts/lib/load-env.sh"
-REPLICA_DIR="$("${PAPER_AGENT_PYTHON:-${PYTHON:-python3}}" -c "
-import sys
-from pathlib import Path
-sys.path.insert(0, '${ROOT}')
-import scripts.lib.bootstrap  # noqa: F401
-from scripts.lib.env_file import method_a_replica_dir
-print(method_a_replica_dir())
-")"
-exec cursor -r "$REPLICA_DIR" "$@"
+exec "$ROOT/bin/paper-agent-python" --load-env scripts/open_overleaf_replica.py "$@"

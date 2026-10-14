@@ -18,6 +18,7 @@ EXPECTED_WRAPPERS = {
     "create-overleaf-project": ("scripts/create_project_from_dir.py", False),
     "install-skills": ("scripts/skill_installer.py", False),
     "open-overleaf-project": ("scripts/open_overleaf_project.py", True),
+    "open-overleaf-replica": ("scripts/open_overleaf_replica.py", True),
     "paper-agent-guide": ("scripts/guide_cli.py", True),
     "paper-project": ("scripts/paper_projects.py", False),
     "setup-env": ("scripts/setup_env.py", True),
