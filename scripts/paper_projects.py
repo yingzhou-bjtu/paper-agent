@@ -14,14 +14,14 @@ import json
 import os
 import re
 import shutil
-import sys
 import tarfile
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+try:
+    from scripts.lib.repo import ROOT
+except ModuleNotFoundError:
+    from lib.repo import ROOT
 
 from scripts.lib.env_file import parse_env_file, write_env_file
 
