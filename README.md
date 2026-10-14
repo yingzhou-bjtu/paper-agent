@@ -399,6 +399,8 @@ Copy [`.env.example`](.env.example) or run `./bin/setup-env`. **Do not commit `.
 | `OVERLEAF_COOKIE` | * | Session cookie (`overleaf_session2=...`) for deploy / API checks — see [Cookie login](#cookie-login) |
 | `OVERLEAF_METHOD_A_DIR` | | Default `../papers/<name>/method-a` |
 | `PAPER_AGENT_ROOT` | | Leave empty → auto-detect repo root |
+| `PAPER_AGENT_STATE_DIR` | | Default `.paper-agent`; local multi-paper registry and archives |
+| `PAPER_AGENT_ACTIVE_LINK` | | Default `当前论文`; symlink name for the active paper |
 | `REFERENCES_DIR` | | Default `参考文献` (relative to repo) |
 | `EXPERIMENT_CODE_DIR` | | Default `实验代码` (relative to repo) |
 

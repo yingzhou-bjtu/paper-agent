@@ -9,6 +9,7 @@ registry without exposing their full material tree.
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import json
 import os
 import re
@@ -26,6 +27,8 @@ from scripts.lib.env_file import parse_env_file, write_env_file
 
 REGISTRY_VERSION = 1
 PROJECT_SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+STATE_DIR_ENV = "PAPER_AGENT_STATE_DIR"
+ACTIVE_LINK_ENV = "PAPER_AGENT_ACTIVE_LINK"
 MATERIAL_DIRS = (
     "参考图片",
     "参考画图代码",
@@ -43,6 +46,51 @@ class PaperProjectError(RuntimeError):
     """Raised for an invalid paper workspace operation."""
 
 
+def _local_path_name_from_env(env_var: str, default: str) -> str:
+    value = os.environ.get(env_var, "").strip()
+    if not value:
+        return default
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts:
+        raise PaperProjectError(f"{env_var} 必须是仓库根目录下的相对路径名称。")
+    return value
+
+
+@dataclass(frozen=True)
+class WorkspaceSettings:
+    root: Path
+    state_dir_name: str = ".paper-agent"
+    active_link_name: str = "当前论文"
+
+    @classmethod
+    def from_root(cls, root: Path) -> "WorkspaceSettings":
+        return cls(
+            root=root,
+            state_dir_name=_local_path_name_from_env(STATE_DIR_ENV, ".paper-agent"),
+            active_link_name=_local_path_name_from_env(ACTIVE_LINK_ENV, "当前论文"),
+        )
+
+    @property
+    def state_root(self) -> Path:
+        return self.root / self.state_dir_name
+
+    @property
+    def registry_path(self) -> Path:
+        return self.state_root / "registry.json"
+
+    @property
+    def projects_root(self) -> Path:
+        return self.state_root / "projects"
+
+    @property
+    def archives_root(self) -> Path:
+        return self.state_root / "archives"
+
+    @property
+    def active_link(self) -> Path:
+        return self.root / self.active_link_name
+
+
 def repo_root(value: Path | None = None) -> Path:
     if value is not None:
         return value.expanduser().resolve()
@@ -54,23 +102,23 @@ def repo_root(value: Path | None = None) -> Path:
 
 
 def state_root(root: Path) -> Path:
-    return root / ".paper-agent"
+    return WorkspaceSettings.from_root(root).state_root
 
 
 def registry_path(root: Path) -> Path:
-    return state_root(root) / "registry.json"
+    return WorkspaceSettings.from_root(root).registry_path
 
 
 def projects_root(root: Path) -> Path:
-    return state_root(root) / "projects"
+    return WorkspaceSettings.from_root(root).projects_root
 
 
 def archives_root(root: Path) -> Path:
-    return state_root(root) / "archives"
+    return WorkspaceSettings.from_root(root).archives_root
 
 
 def active_link(root: Path) -> Path:
-    return root / "当前论文"
+    return WorkspaceSettings.from_root(root).active_link
 
 
 def empty_registry() -> dict:
@@ -288,8 +336,9 @@ def sync_active_env(root: Path, entry: dict) -> None:
         "overleaf_method_a_dir",
         f"../papers/{project_name}/method-a",
     )
-    values["REFERENCES_DIR"] = "当前论文/参考文献"
-    values["EXPERIMENT_CODE_DIR"] = "当前论文/实验代码"
+    active_entry = active_link(root).name
+    values["REFERENCES_DIR"] = f"{active_entry}/参考文献"
+    values["EXPERIMENT_CODE_DIR"] = f"{active_entry}/实验代码"
     write_env_file(values, root / ".env", repo_root=root)
 
 

@@ -3,8 +3,9 @@
 
 from __future__ import annotations
 
-import tempfile
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +51,27 @@ def main() -> int:
         rename_project(root, "alpha", "alpha-renamed", "Alpha Renamed")
         assert (root / "当前论文").resolve().name == "alpha-renamed"
         assert not doctor_project_workspace(root)
+
+    old_state_dir = os.environ.get("PAPER_AGENT_STATE_DIR")
+    old_active_link = os.environ.get("PAPER_AGENT_ACTIVE_LINK")
+    try:
+        os.environ["PAPER_AGENT_STATE_DIR"] = ".paper-agent-custom"
+        os.environ["PAPER_AGENT_ACTIVE_LINK"] = "active-paper"
+        with tempfile.TemporaryDirectory(prefix="paper-project-custom-test-") as temporary:
+            root = Path(temporary)
+            add_project(root, "gamma", "Gamma", "00112233445566778899aabb", activate=True)
+            assert (root / ".paper-agent-custom" / "registry.json").is_file()
+            assert (root / "active-paper").resolve().name == "gamma"
+            assert not doctor_project_workspace(root)
+    finally:
+        if old_state_dir is None:
+            os.environ.pop("PAPER_AGENT_STATE_DIR", None)
+        else:
+            os.environ["PAPER_AGENT_STATE_DIR"] = old_state_dir
+        if old_active_link is None:
+            os.environ.pop("PAPER_AGENT_ACTIVE_LINK", None)
+        else:
+            os.environ["PAPER_AGENT_ACTIVE_LINK"] = old_active_link
 
     print("paper-project tests: PASS")
     return 0
