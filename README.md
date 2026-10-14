@@ -254,6 +254,8 @@ What happens on `push`:
 
 The baseline is stored **outside the replica** by default
 (`../papers/<project>/.paper-agent-sync`), so it is never uploaded to Overleaf.
+If you override `--state-dir`, keep it outside the replica; paper-agent rejects
+replica-local state directories before any sync action starts.
 For offline rehearsal use `--fake-remote-dir <dir>` to replace Overleaf with a
 local directory.
 

@@ -44,6 +44,20 @@ class DirRemote:
         path.write_bytes(content)
 
 
+def resolve_sync_state_dir(replica: Path, state_dir: Path | None) -> Path:
+    default_state_dir = replica.parent / ".paper-agent-sync"
+    candidate = Path(state_dir or default_state_dir).expanduser()
+    resolved_replica = replica.resolve(strict=False)
+    resolved_candidate = candidate.resolve(strict=False)
+    if resolved_candidate.is_relative_to(resolved_replica):
+        raise ValueError(
+            "同步基线目录不能放在本地副本目录内；Overleaf Workshop 会同步整个副本目录。"
+        )
+    if candidate.exists() and not candidate.is_dir():
+        raise ValueError(f"同步基线路径不是目录: {candidate}")
+    return candidate
+
+
 def build_engine(args):
     replica = Path(args.replica or method_a_replica_dir()).expanduser().resolve()
     if args.fake_remote_dir:
@@ -61,8 +75,8 @@ def build_engine(args):
 
     # Keep the baseline OUTSIDE the replica: Overleaf Workshop syncs the whole
     # replica folder, and we must not upload our merge bookkeeping to the project.
-    state_dir = args.state_dir or (replica.parent / ".paper-agent-sync")
-    return SyncEngine(remote, Path(state_dir))
+    state_dir = resolve_sync_state_dir(replica, args.state_dir)
+    return SyncEngine(remote, state_dir)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -80,8 +94,11 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
-    engine = build_engine(args)
     replica = Path(args.replica or method_a_replica_dir()).expanduser().resolve()
+    try:
+        engine = build_engine(args)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     local_path = (replica / document).resolve()
     if not local_path.is_relative_to(replica):
         raise SystemExit(f"文件必须位于本地副本目录内: {local_path}")

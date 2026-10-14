@@ -16,6 +16,7 @@ ensure_repo_on_path()
 from scripts.lib.collab import SyncEngine, normalize_doc_path
 from scripts.lib.overleaf_api import OverleafSession
 from scripts.lib.overleaf_remote import OverleafRemote
+from scripts.collab_sync import resolve_sync_state_dir
 
 
 class FakeRemote:
@@ -85,10 +86,34 @@ def test_sync_engine_rejects_state_escape() -> None:
         assert not (Path(temporary) / "outside.tex").exists()
 
 
+def test_collab_sync_rejects_state_dir_inside_replica() -> None:
+    with tempfile.TemporaryDirectory(prefix="paper-agent-state-dir-") as temporary:
+        replica = Path(temporary) / "method-a"
+        replica.mkdir()
+        assert resolve_sync_state_dir(replica, None) == replica.parent / ".paper-agent-sync"
+
+        try:
+            resolve_sync_state_dir(replica, replica / ".paper-agent-sync")
+        except ValueError as exc:
+            assert "副本目录" in str(exc)
+        else:
+            raise AssertionError("accepted a sync state dir inside the replica")
+
+        state_file = Path(temporary) / "state-file"
+        state_file.write_text("not a directory\n", encoding="utf-8")
+        try:
+            resolve_sync_state_dir(replica, state_file)
+        except ValueError as exc:
+            assert "不是目录" in str(exc)
+        else:
+            raise AssertionError("accepted a sync state path that is a file")
+
+
 def main() -> int:
     test_upload_consumes_same_socket_metadata()
     test_normalize_doc_path_rejects_escapes()
     test_sync_engine_rejects_state_escape()
+    test_collab_sync_rejects_state_dir_inside_replica()
     with tempfile.TemporaryDirectory(prefix="paper-agent-fast-verify-") as temporary:
         remote = FakeRemote(b"base\n")
         engine = SyncEngine(remote, Path(temporary))
