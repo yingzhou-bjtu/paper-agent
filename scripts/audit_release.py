@@ -82,6 +82,16 @@ class AuditReport:
         return not self.findings
 
 
+def report_payload(report: AuditReport) -> dict[str, object]:
+    return {
+        "ok": report.ok,
+        "findings": [
+            {"path": f.path, "line": f.line, "message": f.message}
+            for f in report.findings
+        ],
+    }
+
+
 def _git_tracked_files() -> list[Path]:
     proc = subprocess.run(
         ["git", "ls-files", "-z"],
@@ -220,18 +230,23 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="以 JSON 输出结果",
     )
+    parser.add_argument(
+        "--json-out",
+        type=Path,
+        default=None,
+        help="保存 JSON 审计报告到指定路径",
+    )
     args = parser.parse_args(argv)
 
     report = run_audit()
+    payload = report_payload(report)
+    payload_json = json.dumps(payload, ensure_ascii=False, indent=2)
+    if args.json_out is not None:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(payload_json + "\n", encoding="utf-8")
+
     if args.json:
-        payload = {
-            "ok": report.ok,
-            "findings": [
-                {"path": f.path, "line": f.line, "message": f.message}
-                for f in report.findings
-            ],
-        }
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print(payload_json)
     elif report.ok:
         print("审计通过：未发现私人信息或非开源 skill 配置。")
     else:
