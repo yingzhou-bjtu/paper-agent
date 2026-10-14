@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=../scripts/lib/load-env.sh
 source "$ROOT/scripts/lib/load-env.sh"
-REPLICA_DIR="$(python3 -c "
+REPLICA_DIR="$("${PAPER_AGENT_PYTHON:-${PYTHON:-python3}}" -c "
 import sys
 from pathlib import Path
 sys.path.insert(0, '${ROOT}')

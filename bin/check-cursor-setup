@@ -2,6 +2,4 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=../scripts/lib/load-env.sh
-source "$ROOT/scripts/lib/load-env.sh"
-exec python3 "$ROOT/scripts/run_checks.py" "$@"
+exec "$ROOT/bin/paper-agent-python" --load-env scripts/run_checks.py "$@"

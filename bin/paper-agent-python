@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOAD_ENV=0
+
+if [[ "${1:-}" == "--load-env" ]]; then
+  LOAD_ENV=1
+  shift
+fi
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: paper-agent-python [--load-env] <repo-relative-python-script> [args...]" >&2
+  exit 2
+fi
+
+SCRIPT="$1"
+shift
+
+if [[ "$LOAD_ENV" -eq 1 ]]; then
+  # shellcheck source=../scripts/lib/load-env.sh
+  source "$ROOT/scripts/lib/load-env.sh"
+fi
+
+exec "${PAPER_AGENT_PYTHON:-${PYTHON:-python3}}" "$ROOT/$SCRIPT" "$@"

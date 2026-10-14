@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-exec python3 "$ROOT/scripts/create_project_from_dir.py" "$@"
+exec "$ROOT/bin/paper-agent-python" scripts/create_project_from_dir.py "$@"

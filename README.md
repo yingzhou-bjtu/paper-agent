@@ -127,6 +127,9 @@ material directories, and the local `.env` mapping without printing credentials.
 - **Bundled OSS skills** — curated manifest; `./bin/install-skills minimal` symlinks into `.cursor/skills/`.
 - **Stdlib-first** — core scripts use Python 3.10+ only; no Qt, no extra deps for the guide itself.
 
+Set `PAPER_AGENT_PYTHON` or `PYTHON` to choose a non-default Python interpreter
+for `bin/` commands.
+
 ---
 
 ## Requirements
@@ -209,6 +212,13 @@ returns the server-side byte count, SHA-256, and version. Binary uploads use the
 corresponding file endpoint. The project ZIP is used only for initial local
 replica setup or explicit deep debugging, because its endpoint is slow and can
 make a healthy push look stuck.
+
+For wrapper-level changes, run the static bin check:
+
+```bash
+python3 scripts/test_bin_wrappers.py
+find bin -maxdepth 1 -type f ! -name '*.ps1' -print0 | xargs -0 -n1 bash -n
+```
 
 ### Multi-user collaboration (you on paper-agent, others on Overleaf web)
 
