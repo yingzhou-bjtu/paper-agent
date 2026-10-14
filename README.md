@@ -225,6 +225,7 @@ python3 scripts/audit_release.py --json-out /tmp/paper_agent_release_audit.json
 python3 scripts/test_run_checks.py
 python3 scripts/test_cursor_paths.py
 python3 scripts/test_open_overleaf_replica.py
+python3 scripts/test_create_project_from_dir.py
 find bin -maxdepth 1 -type f ! -name '*.ps1' -print0 | xargs -0 -n1 bash -n
 ```
 

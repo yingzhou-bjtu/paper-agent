@@ -40,7 +40,21 @@ from scripts.create_infocom2027_project import (
 )
 
 
+def resolve_staging_zip_path(source_dir: Path, zip_path: Path | None) -> Path:
+    resolved_source = source_dir.expanduser().resolve()
+    resolved_zip = (
+        zip_path or resolved_source.with_suffix(".zip")
+    ).expanduser().resolve()
+    if resolved_zip.suffix.lower() != ".zip":
+        raise ValueError("staging zip path must end with .zip")
+    if resolved_zip == resolved_source or resolved_zip.is_relative_to(resolved_source):
+        raise ValueError("staging zip path must be outside the source directory")
+    return resolved_zip
+
+
 def zip_directory(source_dir: Path, zip_path: Path) -> Path:
+    source_dir = source_dir.expanduser().resolve()
+    zip_path = resolve_staging_zip_path(source_dir, zip_path)
     if zip_path.exists():
         zip_path.unlink()
     zip_path.parent.mkdir(parents=True, exist_ok=True)
@@ -82,7 +96,10 @@ def main(argv: list[str] | None = None) -> int:
     source_dir = args.source.expanduser().resolve()
     if not source_dir.is_dir():
         raise SystemExit(f"source directory not found: {source_dir}")
-    zip_path = (args.zip_path or source_dir.with_suffix(".zip")).expanduser().resolve()
+    try:
+        zip_path = resolve_staging_zip_path(source_dir, args.zip_path)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
 
     zip_directory(source_dir, zip_path)
     print(f"staged zip: {zip_path} ({zip_path.stat().st_size} bytes)")
