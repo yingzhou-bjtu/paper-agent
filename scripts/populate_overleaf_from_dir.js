@@ -8,50 +8,18 @@
  * Usage:
  *   node populate_overleaf_from_dir.js <identity.json> <projectId> <sourceDir>
  */
-const Module = require('module');
-const workerThreads = require('worker_threads');
-if (typeof workerThreads.markAsUncloneable !== 'function') {
-  workerThreads.markAsUncloneable = () => {};
-}
-if (typeof Promise.withResolvers !== 'function') {
-  Promise.withResolvers = function withResolvers() {
-    let resolve;
-    let reject;
-    const promise = new Promise((res, rej) => {
-      resolve = res;
-      reject = rej;
-    });
-    return { promise, resolve, reject };
-  };
-}
+const {
+  findExtensionRoot,
+  installVSCodeShim,
+  installWorkerThreadCompat,
+} = require('./lib/overleaf_workshop_node');
 
-const originalRequire = Module.prototype.require;
-Module.prototype.require = function patchedRequire(request) {
-  if (request === 'vscode') {
-    return {
-      l10n: { t: (message) => message },
-      workspace: { getConfiguration: () => ({ get: () => undefined }) },
-      window: { showErrorMessage: console.error, showWarningMessage: console.warn },
-    };
-  }
-  return originalRequire.apply(this, arguments);
-};
+installWorkerThreadCompat();
+installVSCodeShim();
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-
-function findExtensionRoot() {
-  const home = process.env.USERPROFILE || process.env.HOME;
-  if (!home) throw new Error('Cannot locate user home directory.');
-  const extensionsDir = path.join(home, '.cursor', 'extensions');
-  const matches = fs
-    .readdirSync(extensionsDir)
-    .filter((name) => /^iamhyc\.overleaf-workshop-.*-universal$/.test(name))
-    .sort();
-  if (!matches.length) throw new Error('Overleaf Workshop extension not found.');
-  return path.join(extensionsDir, matches[matches.length - 1]);
-}
 
 const EXT = findExtensionRoot();
 const { BaseAPI } = require(path.join(EXT, 'out', 'api', 'base'));

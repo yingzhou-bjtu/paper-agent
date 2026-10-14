@@ -5,34 +5,16 @@
  * Usage:
  *   node populate_overleaf_project.js <identity.json> <projectId> <sourceDir>
  */
-const Module = require('module');
-const originalRequire = Module.prototype.require;
-Module.prototype.require = function patchedRequire(request) {
-  if (request === 'vscode') {
-    return {
-      l10n: { t: (message) => message },
-      workspace: { getConfiguration: () => ({ get: () => undefined }) },
-      window: { showErrorMessage: console.error, showWarningMessage: console.warn },
-    };
-  }
-  return originalRequire.apply(this, arguments);
-};
+const {
+  findExtensionRoot,
+  installVSCodeShim,
+} = require('./lib/overleaf_workshop_node');
+
+installVSCodeShim();
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-
-function findExtensionRoot() {
-  const home = process.env.USERPROFILE || process.env.HOME;
-  if (!home) throw new Error('Cannot locate user home directory.');
-  const extensionsDir = path.join(home, '.cursor', 'extensions');
-  const matches = fs
-    .readdirSync(extensionsDir)
-    .filter((name) => /^iamhyc\.overleaf-workshop-.*-universal$/.test(name))
-    .sort();
-  if (!matches.length) throw new Error('Overleaf Workshop extension not found.');
-  return path.join(extensionsDir, matches[matches.length - 1]);
-}
 
 const EXT = findExtensionRoot();
 const { BaseAPI } = require(path.join(EXT, 'out', 'api', 'base'));

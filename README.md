@@ -422,6 +422,7 @@ Copy [`.env.example`](.env.example) or run `./bin/setup-env`. **Do not commit `.
 | `PAPER_AGENT_ROOT` | | Leave empty → auto-detect repo root |
 | `PAPER_AGENT_STATE_DIR` | | Default `.paper-agent`; local multi-paper registry and archives |
 | `PAPER_AGENT_ACTIVE_LINK` | | Default `当前论文`; symlink name for the active paper |
+| `CURSOR_EXTENSIONS_DIR` | | Optional Cursor extension root override; defaults to `~/.cursor/extensions` |
 | `REFERENCES_DIR` | | Default `参考文献` (relative to repo) |
 | `EXPERIMENT_CODE_DIR` | | Default `实验代码` (relative to repo) |
 
