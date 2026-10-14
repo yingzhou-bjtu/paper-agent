@@ -51,6 +51,8 @@ def _local_path_name_from_env(env_var: str, default: str) -> str:
     if not value:
         return default
     path = Path(value)
+    if path == Path("."):
+        raise PaperProjectError(f"{env_var} 不能指向仓库根目录。")
     if path.is_absolute() or ".." in path.parts:
         raise PaperProjectError(f"{env_var} 必须是仓库根目录下的相对路径名称。")
     return value

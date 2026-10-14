@@ -127,7 +127,41 @@ def test_doctor_reports_archive_links() -> None:
         assert any("链接" in problem for problem in problems)
 
 
+def test_workspace_path_overrides_reject_repository_root() -> None:
+    with tempfile.TemporaryDirectory(prefix="paper-project-env-root-test-") as temporary:
+        root = Path(temporary)
+        old_state_dir = os.environ.get("PAPER_AGENT_STATE_DIR")
+        old_active_link = os.environ.get("PAPER_AGENT_ACTIVE_LINK")
+        try:
+            os.environ["PAPER_AGENT_STATE_DIR"] = "."
+            try:
+                add_project(root, "alpha", "Alpha", "", activate=True)
+            except PaperProjectError as exc:
+                assert "仓库根目录" in str(exc)
+            else:
+                raise AssertionError("expected PAPER_AGENT_STATE_DIR=. to fail")
+
+            os.environ["PAPER_AGENT_STATE_DIR"] = ".paper-agent"
+            os.environ["PAPER_AGENT_ACTIVE_LINK"] = "./"
+            try:
+                add_project(root, "alpha", "Alpha", "", activate=True)
+            except PaperProjectError as exc:
+                assert "仓库根目录" in str(exc)
+            else:
+                raise AssertionError("expected PAPER_AGENT_ACTIVE_LINK=./ to fail")
+        finally:
+            if old_state_dir is None:
+                os.environ.pop("PAPER_AGENT_STATE_DIR", None)
+            else:
+                os.environ["PAPER_AGENT_STATE_DIR"] = old_state_dir
+            if old_active_link is None:
+                os.environ.pop("PAPER_AGENT_ACTIVE_LINK", None)
+            else:
+                os.environ["PAPER_AGENT_ACTIVE_LINK"] = old_active_link
+
+
 if __name__ == "__main__":
     test_safe_extract_rejects_archive_links()
     test_doctor_reports_archive_links()
+    test_workspace_path_overrides_reject_repository_root()
     raise SystemExit(main())

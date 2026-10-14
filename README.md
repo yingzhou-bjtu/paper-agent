@@ -428,6 +428,9 @@ Copy [`.env.example`](.env.example) or run `./bin/setup-env`. **Do not commit `.
 \* Required unless Workshop is already logged in and checks pass.
 
 Use **relative paths** inside the repo and `~/...` for the replica. Avoid machine-specific absolute paths.
+`PAPER_AGENT_STATE_DIR` and `PAPER_AGENT_ACTIVE_LINK` must not point at the
+repository root; keep them as dedicated local entries such as `.paper-agent`
+and `当前论文`.
 
 ---
 
