@@ -25,7 +25,7 @@ ensure_repo_on_path()
 
 import scripts.lib.bootstrap  # noqa: F401
 
-from scripts.lib.collab import SyncEngine
+from scripts.lib.collab import SyncEngine, normalize_doc_path
 from scripts.lib.env_file import method_a_replica_dir
 
 
@@ -75,19 +75,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="只报告，不写远端/基线")
     args = parser.parse_args(argv)
 
+    try:
+        document = normalize_doc_path(args.document)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
     engine = build_engine(args)
     replica = Path(args.replica or method_a_replica_dir()).expanduser().resolve()
-    local_path = (replica / args.document).resolve()
+    local_path = (replica / document).resolve()
+    if not local_path.is_relative_to(replica):
+        raise SystemExit(f"文件必须位于本地副本目录内: {local_path}")
     if not local_path.is_file():
         raise SystemExit(f"本地文件不存在: {local_path}")
     local = local_path.read_bytes()
 
     if args.command == "pull":
-        result = engine.pull(args.document, local, dry_run=args.dry_run)
+        result = engine.pull(document, local, dry_run=args.dry_run)
     elif args.command == "push":
-        result = engine.push(args.document, local, dry_run=args.dry_run)
+        result = engine.push(document, local, dry_run=args.dry_run)
     else:
-        result = engine.status(args.document, local)
+        result = engine.status(document, local)
 
     # Apply merge/remote results back to the local replica so the three sides
     # (local, base, remote) end up consistent after the operation.

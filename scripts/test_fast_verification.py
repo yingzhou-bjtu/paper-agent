@@ -13,7 +13,7 @@ except ModuleNotFoundError:
 
 ensure_repo_on_path()
 
-from scripts.lib.collab import SyncEngine
+from scripts.lib.collab import SyncEngine, normalize_doc_path
 from scripts.lib.overleaf_api import OverleafSession
 from scripts.lib.overleaf_remote import OverleafRemote
 
@@ -60,8 +60,35 @@ def test_upload_consumes_same_socket_metadata() -> None:
     assert calls[0][0] == "push_overleaf_doc.js"
 
 
+def test_normalize_doc_path_rejects_escapes() -> None:
+    assert normalize_doc_path("sections\\intro.tex") == "sections/intro.tex"
+    assert normalize_doc_path("./main.tex") == "main.tex"
+
+    for candidate in ("", "   ", "/tmp/main.tex", "../main.tex", "a/../../main.tex"):
+        try:
+            normalize_doc_path(candidate)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"accepted unsafe document path: {candidate!r}")
+
+
+def test_sync_engine_rejects_state_escape() -> None:
+    with tempfile.TemporaryDirectory(prefix="paper-agent-path-guard-") as temporary:
+        engine = SyncEngine(FakeRemote(b"base\n"), Path(temporary) / "state")
+        try:
+            engine.save_base("../outside.tex", b"escape\n")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("save_base accepted a path escaping the state dir")
+        assert not (Path(temporary) / "outside.tex").exists()
+
+
 def main() -> int:
     test_upload_consumes_same_socket_metadata()
+    test_normalize_doc_path_rejects_escapes()
+    test_sync_engine_rejects_state_escape()
     with tempfile.TemporaryDirectory(prefix="paper-agent-fast-verify-") as temporary:
         remote = FakeRemote(b"base\n")
         engine = SyncEngine(remote, Path(temporary))

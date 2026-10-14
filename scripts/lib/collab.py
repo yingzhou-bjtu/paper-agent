@@ -20,7 +20,7 @@ from __future__ import annotations
 import subprocess
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Protocol
 
 
@@ -109,7 +109,21 @@ def three_way_merge(
 
 def normalize_doc_path(doc_path: str) -> str:
     """Normalize a doc path to slash form without a leading slash."""
-    return doc_path.strip().replace("\\", "/").strip("/")
+    raw = doc_path.strip().replace("\\", "/")
+    if not raw:
+        raise ValueError("Document path must not be empty")
+
+    path = PurePosixPath(raw)
+    if path.is_absolute():
+        raise ValueError("Document path must be relative to the replica")
+
+    parts = tuple(part for part in path.parts if part not in ("", "."))
+    if not parts:
+        raise ValueError("Document path must not be empty")
+    if any(part == ".." for part in parts):
+        raise ValueError("Document path must not escape the replica")
+
+    return PurePosixPath(*parts).as_posix()
 
 
 class SyncEngine:
@@ -121,7 +135,12 @@ class SyncEngine:
         self.base_dir = state_dir / "base"
 
     def _baseline_path(self, doc: str) -> Path:
-        return (self.base_dir / doc).resolve()
+        doc = normalize_doc_path(doc)
+        base_dir = self.base_dir.resolve()
+        path = (base_dir / doc).resolve()
+        if not path.is_relative_to(base_dir):
+            raise ValueError("Document path must not escape the sync state")
+        return path
 
     def load_base(self, doc: str) -> bytes | None:
         path = self._baseline_path(doc)
