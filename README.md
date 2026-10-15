@@ -224,6 +224,7 @@ python3 scripts/test_audit_release.py
 python3 scripts/audit_release.py --json-out /tmp/paper_agent_release_audit.json
 python3 scripts/test_run_checks.py
 python3 scripts/test_cursor_paths.py
+python3 scripts/test_overleaf_server_options.py
 python3 scripts/test_open_overleaf_replica.py
 python3 scripts/test_create_project_from_dir.py
 find bin -maxdepth 1 -type f ! -name '*.ps1' -print0 | xargs -0 -n1 bash -n
@@ -303,6 +304,8 @@ If the guide stops midway, run steps individually:
 
 **What to copy:** the cookie named **`overleaf_session2`** (value is a long random string).  
 You can paste either `overleaf_session2=<value>` **or** the full `Cookie:` header from DevTools—`configure-overleaf-cookie` keeps only the first `name=value` pair.
+The optional server name and URL are validated before any network request or
+Workshop state write; server URLs must use `http` or `https` with a hostname.
 
 #### Method A — Application tab (recommended)
 
