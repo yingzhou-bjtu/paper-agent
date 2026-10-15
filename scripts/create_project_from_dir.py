@@ -18,6 +18,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -55,13 +57,29 @@ def resolve_staging_zip_path(source_dir: Path, zip_path: Path | None) -> Path:
 def zip_directory(source_dir: Path, zip_path: Path) -> Path:
     source_dir = source_dir.expanduser().resolve()
     zip_path = resolve_staging_zip_path(source_dir, zip_path)
-    if zip_path.exists():
-        zip_path.unlink()
     zip_path.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(source_dir.rglob("*")):
-            if path.is_file():
-                archive.write(path, path.relative_to(source_dir).as_posix())
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=zip_path.parent,
+            prefix=f".{zip_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary_file:
+            temporary_path = Path(temporary_file.name)
+        with zipfile.ZipFile(
+            temporary_path,
+            "w",
+            compression=zipfile.ZIP_DEFLATED,
+        ) as archive:
+            for path in sorted(source_dir.rglob("*")):
+                if path.is_file():
+                    archive.write(path, path.relative_to(source_dir).as_posix())
+        os.replace(temporary_path, zip_path)
+    except Exception:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise
     return zip_path
 
 

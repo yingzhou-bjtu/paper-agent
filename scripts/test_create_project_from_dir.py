@@ -6,6 +6,7 @@ from __future__ import annotations
 import tempfile
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 try:
     from scripts.create_project_from_dir import resolve_staging_zip_path, zip_directory
@@ -60,6 +61,26 @@ def test_zip_directory_keeps_staging_zip_outside_archive() -> None:
 
         with zipfile.ZipFile(zip_path) as archive:
             assert archive.namelist() == ["main.tex"]
+
+
+def test_zip_directory_preserves_existing_archive_on_failure() -> None:
+    with tempfile.TemporaryDirectory(prefix="paper-agent-create-project-") as temporary:
+        root = Path(temporary)
+        source = root / "source"
+        source.mkdir()
+        zip_path = root / "upload.zip"
+        zip_path.write_bytes(b"existing-archive")
+
+        with patch.object(Path, "rglob", side_effect=OSError("simulated failure")):
+            try:
+                zip_directory(source, zip_path)
+            except OSError as exc:
+                assert "simulated failure" in str(exc)
+            else:
+                raise AssertionError("expected zip creation to fail")
+
+        assert zip_path.read_bytes() == b"existing-archive"
+        assert not list(root.glob(".upload.zip.*.tmp"))
 
 
 def main() -> int:

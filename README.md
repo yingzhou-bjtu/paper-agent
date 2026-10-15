@@ -230,6 +230,9 @@ python3 scripts/test_create_project_from_dir.py
 find bin -maxdepth 1 -type f ! -name '*.ps1' -print0 | xargs -0 -n1 bash -n
 ```
 
+Project upload ZIPs are built in a same-directory temporary file and atomically
+replaced, so a failed archive rebuild does not delete the previous usable ZIP.
+
 `./bin/check-cursor-setup --list` lists available local environment checks, and
 `./bin/check-cursor-setup --json` returns machine-readable results for scripts
 or CI jobs.
