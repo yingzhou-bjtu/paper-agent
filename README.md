@@ -97,6 +97,8 @@ Create and switch papers with:
 updates the local `.env` to its Overleaf project, and refreshes the `当前论文`
 entry point. Local virtual environments and Python caches are excluded from
 archives because they are reproducible runtime state, not paper materials.
+Renaming an archived project builds the replacement archive before deleting the
+old one, so a failed archive step leaves the original project recoverable.
 The registry, expanded materials, archives, and `.env` remain local and are
 ignored by GitHub. Only generic tooling and documentation belong in this
 repository.

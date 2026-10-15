@@ -328,8 +328,13 @@ def rename_project(root: Path, old_slug: str, new_slug: str, label: str | None) 
             safe_extract(old_archive, temporary_dir, old_slug)
             temporary_project.rename(new_dir)
             write_project_readme(new_dir, entry["label"], new_slug)
+            try:
+                archive_project(root, new_slug)
+            except Exception:
+                new_archive.unlink(missing_ok=True)
+                shutil.rmtree(new_dir, ignore_errors=True)
+                raise
             old_archive.unlink()
-            archive_project(root, new_slug)
         finally:
             shutil.rmtree(temporary_dir, ignore_errors=True)
 

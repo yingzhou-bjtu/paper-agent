@@ -7,6 +7,7 @@ import os
 import tarfile
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 try:
     from scripts.lib.repo import ROOT
@@ -23,10 +24,12 @@ from scripts.paper_projects import (
     doctor_project_workspace,
     list_projects,
     PaperProjectError,
+    project_dir,
     rename_project,
     safe_extract,
     switch_project,
 )
+import scripts.paper_projects as paper_projects_module
 
 
 def main() -> int:
@@ -160,6 +163,40 @@ def test_workspace_path_overrides_reject_repository_root() -> None:
                 os.environ.pop("PAPER_AGENT_ACTIVE_LINK", None)
             else:
                 os.environ["PAPER_AGENT_ACTIVE_LINK"] = old_active_link
+
+
+def test_rename_archived_project_preserves_archive_on_failure() -> None:
+    with tempfile.TemporaryDirectory(prefix="paper-project-rename-failure-") as temporary:
+        root = Path(temporary)
+        add_project(
+            root,
+            "alpha",
+            "Alpha",
+            "0123456789abcdef01234567",
+            activate=False,
+        )
+        archive_project(root, "alpha")
+        original_archive = archive_path(root, "alpha")
+        assert original_archive.is_file()
+
+        with patch.object(
+            paper_projects_module,
+            "archive_project",
+            side_effect=PaperProjectError("simulated archive failure"),
+        ):
+            try:
+                rename_project(root, "alpha", "beta", None)
+            except PaperProjectError as exc:
+                assert "simulated archive failure" in str(exc)
+            else:
+                raise AssertionError("expected rename archive failure")
+
+        assert original_archive.is_file()
+        assert not archive_path(root, "beta").exists()
+        assert not project_dir(root, "beta").exists()
+        registry = paper_projects_module.load_registry(root)
+        assert "alpha" in registry["projects"]
+        assert "beta" not in registry["projects"]
 
 
 if __name__ == "__main__":
