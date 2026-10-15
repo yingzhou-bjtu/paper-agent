@@ -364,7 +364,10 @@ def parse_document(text: str, *, fragment: bool = False) -> ParsedDocument:
     # Unreachable invariant, not a third orphan-marker code path: a marker
     # before a blank line is rejected in the blank branch, and a marker at
     # EOF is rejected right after it is consumed.
-    assert pending_marker is None
+    if pending_marker is not None:
+        raise RuntimeError(
+            "internal parser invariant violated: pending marker survived document parse"
+        )
 
     seen: dict[str, int] = {}
     for b in blocks:
